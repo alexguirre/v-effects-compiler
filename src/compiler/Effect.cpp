@@ -126,6 +126,7 @@ namespace technique
 CEffect::CEffect(const std::string& source)
 	: mSource(source)
 {
+	EnsureTechniques();
 }
 
 void CEffect::EnsureTechniques()

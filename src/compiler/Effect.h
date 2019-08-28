@@ -27,11 +27,13 @@ private:
 public:
 	CEffect(const std::string& source);
 
-	void EnsureTechniques();
 	std::unique_ptr<CCodeBlob> CompileProgram(const std::string& entryPoint, eProgramType type) const;
 
 	inline const std::string& Source() const { return mSource; }
 	inline const std::vector<sTechnique>& Techniques() const { return mTechniques; }
+
+private:
+	void EnsureTechniques();
 };
 
 struct sAssigment
@@ -51,7 +53,7 @@ struct sTechnique
 	std::vector<sTechniquePass> Passes;
 };
 
-struct CCodeBlob
+class CCodeBlob
 {
 private:
 	std::unique_ptr<uint8_t[]> mData;

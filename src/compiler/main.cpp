@@ -2,6 +2,7 @@
 #include <string>
 #include <memory>
 #include "Effect.h"
+#include "EffectSaver.h"
 
 int main()
 {
@@ -152,7 +153,6 @@ int main()
 	)");
 
 	std::unique_ptr<CEffect> fx = std::make_unique<CEffect>(src);
-	fx->EnsureTechniques();
 
 	std::cout << "Techniques\n";
 	for (auto& t : fx->Techniques())
@@ -178,6 +178,16 @@ int main()
 		std::cout << "Compiling 'PS_LaserBeam'...\n";
 		std::unique_ptr<CCodeBlob> psCode = fx->CompileProgram("PS_LaserBeam", eProgramType::Fragment);
 		std::cout << "	Size:" << psCode->Size() << "\n";
+	}
+	catch (const std::exception& e)
+	{
+		std::cerr << e.what() << std::endl;
+	}
+	
+	CEffectSaver s(*fx);
+	try
+	{
+		s.SaveTo("test.fxc");
 	}
 	catch (const std::exception& e)
 	{
