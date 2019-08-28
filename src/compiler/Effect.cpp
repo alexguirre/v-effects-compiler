@@ -2,6 +2,8 @@
 #include <tao/pegtl.hpp>
 #include <tao/pegtl/analyze.hpp>
 #include <tao/pegtl/contrib/raw_string.hpp>
+#include <d3dcompiler.h>
+#include <atlbase.h>
 
 namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
 
@@ -152,4 +154,46 @@ void CEffect::EnsureTechniques()
 	}
 
 	mTechniques = s.Techniques;
+}
+
+static const char* GetTargetForProgram(eProgramType type)
+{
+	switch (type)
+	{
+	case eProgramType::Vertex: return "vs_4_0";
+	case eProgramType::Fragment: return "ps_4_0";
+	case eProgramType::Compute: return "cs_5_0";
+	case eProgramType::Domain: return "ds_5_0";
+	case eProgramType::Geometry: return "gs_5_0";
+	case eProgramType::Hull: return "hs_5_0";
+	}
+
+	throw std::invalid_argument("Invalid program type");
+}
+
+std::unique_ptr<CCodeBlob> CEffect::CompileProgram(const std::string& entrypoint, eProgramType type) const
+{
+	// TODO: implement ID3DInclude
+	CComPtr<ID3DBlob> code, errorMsg;
+	HRESULT r = D3DCompile(mSource.c_str(), mSource.size(), "CEffect", nullptr, nullptr, entrypoint.c_str(), GetTargetForProgram(type), 0, 0, &code, &errorMsg);
+	if (SUCCEEDED(r))
+	{
+		return std::make_unique<CCodeBlob>(code->GetBufferPointer(), code->GetBufferSize());
+	}
+	else
+	{
+		throw std::exception(errorMsg ? reinterpret_cast<const char*>(errorMsg->GetBufferPointer()) : "Compilation error");
+	}
+}
+
+CCodeBlob::CCodeBlob(const void* data, uint32_t size)
+	: mData(nullptr), mSize(size)
+{
+	if (data && size > 0)
+	{
+		mData = std::make_unique<uint8_t[]>(size);
+		memcpy_s(mData.get(), mSize, data, mSize);
+	}
+
+	CCodeBlob b = std::move(*this);
 }

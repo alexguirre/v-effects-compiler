@@ -1,16 +1,23 @@
 #include <iostream>
 #include <string>
+#include <memory>
 #include "Effect.h"
 
 int main()
 {
 	std::string src(R"(
-	#include <global_buffers.h>
+	cbuffer rage_matrices : register(b0)
+	{
+	  row_major float4x4 gWorld;         // Offset:    0 Size:    64
+	  row_major float4x4 gWorldView;     // Offset:   64 Size:    64
+	  row_major float4x4 gWorldViewProj; // Offset:  128 Size:    64
+	  row_major float4x4 gViewInverse;   // Offset:  192 Size:    64
+	}
 
 	cbuffer LaserParam : register(b1)
 	{
-		float gMaxDisplacement;            // Offset:    0 Size:     4 [unused]
-		float gCameraDistanceAtMaxDisplacement;// Offset:    4 Size:     4 [unused]
+		float gMaxDisplacement;            // Offset:    0 Size:     4
+		float gCameraDistanceAtMaxDisplacement;// Offset:    4 Size:     4
 		float4 LaserVisibilityMinMax;      // Offset:   16 Size:    16
 	}
 
@@ -144,7 +151,7 @@ int main()
 		technique Third{pass{TheState=TRUE;AndAnotherState=GREATER;}pass{S=NONE;}}
 	)");
 
-	CEffect* fx = new CEffect(src);
+	std::unique_ptr<CEffect> fx = std::make_unique<CEffect>(src);
 	fx->EnsureTechniques();
 
 	std::cout << "Techniques\n";
@@ -162,7 +169,20 @@ int main()
 		}
 	}
 
-	delete fx;
+	try
+	{
+		std::cout << "Compiling 'VS_LaserBeam'...\n";
+		std::unique_ptr<CCodeBlob> vsCode = fx->CompileProgram("VS_LaserBeam", eProgramType::Vertex);
+		std::cout << "	Size:" << vsCode->Size() << "\n";
+
+		std::cout << "Compiling 'PS_LaserBeam'...\n";
+		std::unique_ptr<CCodeBlob> psCode = fx->CompileProgram("PS_LaserBeam", eProgramType::Fragment);
+		std::cout << "	Size:" << psCode->Size() << "\n";
+	}
+	catch (const std::exception& e)
+	{
+		std::cerr << e.what() << std::endl;
+	}
 
 	return 0;
 }
