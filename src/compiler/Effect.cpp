@@ -187,6 +187,42 @@ std::unique_ptr<CCodeBlob> CEffect::CompileProgram(const std::string& entrypoint
 	}
 }
 
+static const char* GetAssignmentTypeForProgram(eProgramType type)
+{
+	switch (type)
+	{
+	case eProgramType::Vertex: return "VertexShader";
+	case eProgramType::Fragment: return "PixelShader";
+	case eProgramType::Compute: return "ComputeShader";
+	case eProgramType::Domain: return "DomainShader";
+	case eProgramType::Geometry: return "GeometryShader";
+	case eProgramType::Hull: return "HullShader";
+	}
+
+	throw std::invalid_argument("Invalid program type");
+}
+
+void CEffect::GetUsedPrograms(std::vector<std::string>& outEntrypoints, eProgramType type) const
+{
+	outEntrypoints.clear();
+
+	const char* assignmentType = GetAssignmentTypeForProgram(type);
+
+	for (auto& t : mTechniques)
+	{
+		for (auto& p : t.Passes)
+		{
+			for (auto& a : p.Assigments)
+			{
+				if (a.Type == assignmentType)
+				{
+					outEntrypoints.push_back(a.Value);
+				}
+			}
+		}
+	}
+}
+
 CCodeBlob::CCodeBlob(const void* data, uint32_t size)
 	: mData(nullptr), mSize(size)
 {

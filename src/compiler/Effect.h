@@ -28,6 +28,7 @@ public:
 	CEffect(const std::string& source);
 
 	std::unique_ptr<CCodeBlob> CompileProgram(const std::string& entryPoint, eProgramType type) const;
+	void GetUsedPrograms(std::vector<std::string>& outEntrypoints, eProgramType type) const;
 
 	inline const std::string& Source() const { return mSource; }
 	inline const std::vector<sTechnique>& Techniques() const { return mTechniques; }
@@ -62,5 +63,6 @@ private:
 public:
 	CCodeBlob(const void* data, uint32_t size);
 
+	inline const uint8_t* Data() const { return mData.get(); }
 	inline uint32_t Size() const { return mSize; }
 };

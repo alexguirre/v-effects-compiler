@@ -3,6 +3,7 @@
 #include <ostream>
 
 class CEffect;
+enum class eProgramType;
 
 class CEffectSaver
 {
@@ -15,9 +16,12 @@ public:
 	void SaveTo(const std::filesystem::path& filePath) const;
 
 private:
+	void WriteHeader(std::ostream& o) const;
+	void WriteAnnotations(std::ostream& o) const;
+	void WritePrograms(std::ostream& o, eProgramType type) const;
+
 	void WriteLengthPrefixedString(std::ostream& o, const std::string& str) const;
 	void WriteUInt32(std::ostream& o, uint32_t v) const;
 	void WriteUInt16(std::ostream& o, uint16_t v) const;
 	void WriteUInt8(std::ostream& o, uint8_t v) const;
 };
-
