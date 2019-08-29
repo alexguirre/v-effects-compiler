@@ -171,13 +171,13 @@ int main()
 
 	try
 	{
-		std::cout << "Compiling 'VS_LaserBeam'...\n";
-		std::unique_ptr<CCodeBlob> vsCode = fx->CompileProgram("VS_LaserBeam", eProgramType::Vertex);
-		std::cout << "	Size:" << vsCode->Size() << "\n";
+		std::cout << "Getting 'VS_LaserBeam'...\n";
+		const CCodeBlob& vsCode = fx->GetProgramCode("VS_LaserBeam");
+		std::cout << "	Size:" << vsCode.Size() << "\n";
 
-		std::cout << "Compiling 'PS_LaserBeam'...\n";
-		std::unique_ptr<CCodeBlob> psCode = fx->CompileProgram("PS_LaserBeam", eProgramType::Fragment);
-		std::cout << "	Size:" << psCode->Size() << "\n";
+		std::cout << "Getting 'PS_LaserBeam'...\n";
+		const CCodeBlob& psCode = fx->GetProgramCode("PS_LaserBeam");
+		std::cout << "	Size:" << psCode.Size() << "\n";
 	}
 	catch (const std::exception& e)
 	{

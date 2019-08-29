@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <unordered_map>
 
 struct sTechniquePassAssigment;
 struct sTechniquePass;
@@ -10,12 +11,14 @@ class CCodeBlob;
 
 enum class eProgramType
 {
-	Vertex,
+	Vertex = 0,
 	Fragment,
 	Compute,
 	Domain,
 	Geometry,
 	Hull,
+
+	NumberOfTypes,
 };
 
 class CEffect
@@ -23,18 +26,22 @@ class CEffect
 private:
 	std::string mSource;
 	std::vector<sTechnique> mTechniques;
+	std::unordered_map<std::string, std::unique_ptr<CCodeBlob>> mProgramsCode;
 
 public:
 	CEffect(const std::string& source);
 
-	std::unique_ptr<CCodeBlob> CompileProgram(const std::string& entryPoint, eProgramType type) const;
 	void GetUsedPrograms(std::vector<std::string>& outEntrypoints, eProgramType type) const;
+	const CCodeBlob& GetProgramCode(const std::string& entrypoint) const;
 
 	inline const std::string& Source() const { return mSource; }
 	inline const std::vector<sTechnique>& Techniques() const { return mTechniques; }
 
 private:
 	void EnsureTechniques();
+	void EnsureProgramsCode();
+
+	std::unique_ptr<CCodeBlob> CompileProgram(const std::string& entryPoint, eProgramType type) const;
 };
 
 struct sAssigment

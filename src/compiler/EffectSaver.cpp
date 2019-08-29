@@ -112,10 +112,10 @@ void CEffectSaver::WritePrograms(std::ostream& o, eProgramType type) const
 
 		for (const auto& e : entrypoints)
 		{
-			std::unique_ptr<CCodeBlob> code = mEffect.CompileProgram(e, type);
+			const CCodeBlob& code = mEffect.GetProgramCode(e);
 			std::vector<std::tuple<std::string, int>> buffersAndRegisters;
 			std::vector<std::string> bufferVariables;
-			GetProgramBuffers(*code, buffersAndRegisters, bufferVariables);
+			GetProgramBuffers(code, buffersAndRegisters, bufferVariables);
 			
 			if (buffersAndRegisters.size() > 255)
 			{
@@ -146,10 +146,10 @@ void CEffectSaver::WritePrograms(std::ostream& o, eProgramType type) const
 			}
 
 			// bytecode
-			WriteUInt32(o, code->Size());
-			if (code->Size() > 0)
+			WriteUInt32(o, code.Size());
+			if (code.Size() > 0)
 			{
-				o.write(reinterpret_cast<const char*>(code->Data()), code->Size());
+				o.write(reinterpret_cast<const char*>(code.Data()), code.Size());
 				WriteUInt8(o, 4); // target version major
 				WriteUInt8(o, 0); // target version minor
 			}
@@ -247,27 +247,17 @@ static void GetBuffersDesc(const CCodeBlob& code, std::set<sBufferDesc, sBufferD
 
 void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 {
-	eProgramType types[] =
-	{
-		eProgramType::Vertex,
-		eProgramType::Fragment,
-		eProgramType::Compute,
-		eProgramType::Domain,
-		eProgramType::Geometry,
-		eProgramType::Hull
-	};
-
 	std::set<sBufferDesc, sBufferDesc::Comparer> buffers;
 	std::set<sBufferVariableDesc, sBufferVariableDesc::Comparer> bufferVars;
-	for (int i = 0; i < ARRAYSIZE(types); i++)
+	for (int i = 0; i < static_cast<int>(eProgramType::NumberOfTypes); i++)
 	{
 		std::vector<std::string> programs;
-		mEffect.GetUsedPrograms(programs, types[i]);
+		mEffect.GetUsedPrograms(programs, static_cast<eProgramType>(i));
 
 		for (const auto& p : programs)
 		{
-			std::unique_ptr<CCodeBlob> code = mEffect.CompileProgram(p, types[i]);
-			GetBuffersDesc(*code, buffers, bufferVars, globals);
+			const CCodeBlob& code = mEffect.GetProgramCode(p);
+			GetBuffersDesc(code, buffers, bufferVars, globals);
 		}
 	}
 

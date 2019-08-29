@@ -127,6 +127,20 @@ CEffect::CEffect(const std::string& source)
 	: mSource(source)
 {
 	EnsureTechniques();
+	EnsureProgramsCode();
+}
+
+const CCodeBlob& CEffect::GetProgramCode(const std::string& entrypoint) const
+{
+	auto e = mProgramsCode.find(entrypoint);
+	if (e != mProgramsCode.end())
+	{
+		return *e->second;
+	}
+	else
+	{
+		throw std::invalid_argument("Entrypoint does not exist");
+	}
 }
 
 void CEffect::EnsureTechniques()
@@ -155,6 +169,27 @@ void CEffect::EnsureTechniques()
 	}
 
 	mTechniques = s.Techniques;
+}
+
+void CEffect::EnsureProgramsCode()
+{
+	if (!mProgramsCode.empty())
+	{
+		return;
+	}
+
+	for (int i = 0; i < static_cast<int>(eProgramType::NumberOfTypes); i++)
+	{
+		eProgramType type = static_cast<eProgramType>(i);
+
+		std::vector<std::string> entrypoints;
+		GetUsedPrograms(entrypoints, type);
+
+		for (const auto& e : entrypoints)
+		{
+			mProgramsCode.insert({ e, CompileProgram(e, type) });
+		}
+	}
 }
 
 static const char* GetTargetForProgram(eProgramType type)
