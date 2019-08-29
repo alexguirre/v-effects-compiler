@@ -195,6 +195,4 @@ CCodeBlob::CCodeBlob(const void* data, uint32_t size)
 		mData = std::make_unique<uint8_t[]>(size);
 		memcpy_s(mData.get(), mSize, data, mSize);
 	}
-
-	CCodeBlob b = std::move(*this);
 }
