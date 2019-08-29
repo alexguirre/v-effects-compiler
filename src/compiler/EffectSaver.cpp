@@ -5,6 +5,7 @@
 #include <d3dcompiler.h>
 #include <atlbase.h>
 #include <tuple>
+#include <set>
 #include "Effect.h"
 
 namespace fs = std::filesystem;
@@ -37,6 +38,8 @@ void CEffectSaver::SaveTo(const fs::path& filePath) const
 	WritePrograms(f, eProgramType::Domain);
 	WritePrograms(f, eProgramType::Geometry);
 	WritePrograms(f, eProgramType::Hull);
+	WriteBuffers(f, true);
+	WriteBuffers(f, false);
 
 	// TODO: finish CEffectSaver::SaveTo
 }
@@ -56,9 +59,6 @@ void CEffectSaver::WriteAnnotations(std::ostream& o) const
 
 static void GetProgramBuffers(const CCodeBlob& code, std::vector<std::tuple<std::string, int>>& outBuffersAndRegisters, std::vector<std::string>& outBufferVariables)
 {
-	outBuffersAndRegisters.clear();
-	outBufferVariables.clear();
-
 	CComPtr<ID3D11ShaderReflection> reflection;
 	HRESULT r = D3DReflect(code.Data(), code.Size(), __uuidof(ID3D11ShaderReflection), reinterpret_cast<void**>(&reflection));
 	if (FAILED(r))
@@ -101,20 +101,14 @@ void CEffectSaver::WritePrograms(std::ostream& o, eProgramType type) const
 		std::vector<std::string> entrypoints;
 		mEffect.GetUsedPrograms(entrypoints, type);
 
-		if (entrypoints.size() > 254)
+		if (entrypoints.size() > 255 - 1)
 		{
 			throw std::exception("Too many programs");
 		}
 
 		WriteUInt8(o, static_cast<uint8_t>(entrypoints.size() + 1)); // program count
-
-		// NULL program
-		{
-			WriteLengthPrefixedString(o, "NULL");
-			WriteUInt8(o, 0); // buffer variable count
-			WriteUInt8(o, 0); // buffer count
-			WriteUInt32(o, 0); // bytecode size
-		}
+		
+		WriteNullProgram(o);
 
 		for (const auto& e : entrypoints)
 		{
@@ -166,14 +160,140 @@ void CEffectSaver::WritePrograms(std::ostream& o, eProgramType type) const
 		// TODO: WritePrograms for programs other than vertex/fragment
 		WriteUInt8(o, 1); // program count
 
-		// NULL program
+		WriteNullProgram(o);
+	}
+}
+
+void CEffectSaver::WriteNullProgram(std::ostream& o) const
+{
+	WriteLengthPrefixedString(o, "NULL");
+	WriteUInt8(o, 0); // buffer variable count
+	WriteUInt8(o, 0); // buffer count
+	WriteUInt32(o, 0); // bytecode size
+}
+
+struct sBufferDesc
+{
+	std::string Name;
+	uint32_t Size = 0;
+	uint16_t Register = 0;
+
+	struct Comparer
+	{
+		bool operator()(const sBufferDesc& lhs, const sBufferDesc& rhs) const
 		{
-			WriteLengthPrefixedString(o, "NULL");
-			WriteUInt8(o, 0); // buffer variable count
-			WriteUInt8(o, 0); // buffer count
-			WriteUInt32(o, 0); // bytecode size
+			return lhs.Name < rhs.Name;
+		}
+	};
+};
+
+struct sBufferVariableDesc
+{
+	std::string Name;
+
+	struct Comparer
+	{
+		bool operator()(const sBufferVariableDesc& lhs, const sBufferVariableDesc& rhs) const
+		{
+			return lhs.Name < rhs.Name;
+		}
+	};
+};
+
+static void GetBuffersDesc(const CCodeBlob& code, std::set<sBufferDesc, sBufferDesc::Comparer>& outBuffers, std::set<sBufferVariableDesc, sBufferVariableDesc::Comparer>& outBufferVars, bool globals)
+{
+	static std::set<std::string_view> knownGlobalBuffers =
+	{ 
+		"rage_clipplanes", "rage_matrices", "misc_global", "lighting_globals", "rage_bonemtx", "rage_cbinst_matrices", "rage_cbinst_update"
+		// TODO: there's some more global buffers
+	};
+
+	CComPtr<ID3D11ShaderReflection> reflection;
+	HRESULT r = D3DReflect(code.Data(), code.Size(), __uuidof(ID3D11ShaderReflection), reinterpret_cast<void**>(&reflection));
+	if (FAILED(r))
+	{
+		return;
+	}
+
+	D3D11_SHADER_DESC shaderDesc;
+	if (FAILED(reflection->GetDesc(&shaderDesc)))
+	{
+		return;
+	}
+
+	for (int i = 0; i < shaderDesc.ConstantBuffers; i++)
+	{
+		ID3D11ShaderReflectionConstantBuffer* buffer = reflection->GetConstantBufferByIndex(i);
+		D3D11_SHADER_BUFFER_DESC bufferDesc;
+		buffer->GetDesc(&bufferDesc);
+
+		bool isGlobalBuffer = knownGlobalBuffers.find(bufferDesc.Name) != knownGlobalBuffers.end();
+		if ((globals && isGlobalBuffer) || (!globals && !isGlobalBuffer))
+		{
+			D3D11_SHADER_INPUT_BIND_DESC bindDesc;
+			reflection->GetResourceBindingDescByName(bufferDesc.Name, &bindDesc);
+
+			sBufferDesc d;
+			d.Name = bufferDesc.Name;
+			d.Size = bufferDesc.Size;
+			d.Register = bindDesc.BindPoint;
+
+			outBuffers.insert(d);
+
+			// TODO: buffer variables
 		}
 	}
+}
+
+void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
+{
+	eProgramType types[] =
+	{
+		eProgramType::Vertex,
+		eProgramType::Fragment,
+		eProgramType::Compute,
+		eProgramType::Domain,
+		eProgramType::Geometry,
+		eProgramType::Hull
+	};
+
+	std::set<sBufferDesc, sBufferDesc::Comparer> buffers;
+	std::set<sBufferVariableDesc, sBufferVariableDesc::Comparer> bufferVars;
+	for (int i = 0; i < ARRAYSIZE(types); i++)
+	{
+		std::vector<std::string> programs;
+		mEffect.GetUsedPrograms(programs, types[i]);
+
+		for (const auto& p : programs)
+		{
+			std::unique_ptr<CCodeBlob> code = mEffect.CompileProgram(p, types[i]);
+			GetBuffersDesc(*code, buffers, bufferVars, globals);
+		}
+	}
+
+	if (buffers.size() > 255)
+	{
+		throw std::exception("Too many buffers");
+	}
+
+	if (bufferVars.size() > 255)
+	{
+		throw std::exception("Too many buffer variables");
+	}
+
+	// buffers
+	WriteUInt8(o, static_cast<uint8_t>(buffers.size()));
+	for (auto& b : buffers)
+	{
+		WriteUInt32(o, b.Size);
+		for (int i = 0; i < 6; i++) // 6 times, one for each program type
+		{
+			WriteUInt16(o, b.Register);
+		}
+		WriteLengthPrefixedString(o, b.Name);
+	}
+
+	// TODO: buffer variables
 }
 
 void CEffectSaver::WriteLengthPrefixedString(std::ostream& o, const std::string& str) const

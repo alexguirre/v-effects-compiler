@@ -19,6 +19,9 @@ private:
 	void WriteHeader(std::ostream& o) const;
 	void WriteAnnotations(std::ostream& o) const;
 	void WritePrograms(std::ostream& o, eProgramType type) const;
+	void WriteBuffers(std::ostream& o, bool globals) const;
+
+	void WriteNullProgram(std::ostream& o) const;
 
 	void WriteLengthPrefixedString(std::ostream& o, const std::string& str) const;
 	void WriteUInt32(std::ostream& o, uint32_t v) const;
