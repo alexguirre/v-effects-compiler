@@ -73,13 +73,13 @@ static void GetProgramBuffers(const CCodeBlob& code, std::vector<std::tuple<std:
 		return;
 	}
 
-	for (int i = 0; i < shaderDesc.ConstantBuffers; i++)
+	for (uint32_t i = 0; i < shaderDesc.ConstantBuffers; i++)
 	{
 		ID3D11ShaderReflectionConstantBuffer* buffer = reflection->GetConstantBufferByIndex(i);
 		D3D11_SHADER_BUFFER_DESC bufferDesc;
 		buffer->GetDesc(&bufferDesc);
 
-		for (int j = 0; j < bufferDesc.Variables; j++)
+		for (uint32_t j = 0; j < bufferDesc.Variables; j++)
 		{
 			ID3D11ShaderReflectionVariable* var = buffer->GetVariableByIndex(j);
 			D3D11_SHADER_VARIABLE_DESC varDesc;
@@ -222,7 +222,7 @@ static void GetBuffersDesc(const CCodeBlob& code, std::set<sBufferDesc, sBufferD
 		return;
 	}
 
-	for (int i = 0; i < shaderDesc.ConstantBuffers; i++)
+	for (uint32_t i = 0; i < shaderDesc.ConstantBuffers; i++)
 	{
 		ID3D11ShaderReflectionConstantBuffer* buffer = reflection->GetConstantBufferByIndex(i);
 		D3D11_SHADER_BUFFER_DESC bufferDesc;

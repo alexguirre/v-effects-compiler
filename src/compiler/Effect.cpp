@@ -214,7 +214,7 @@ std::unique_ptr<CCodeBlob> CEffect::CompileProgram(const std::string& entrypoint
 	HRESULT r = D3DCompile(mSource.c_str(), mSource.size(), "CEffect", nullptr, nullptr, entrypoint.c_str(), GetTargetForProgram(type), 0, 0, &code, &errorMsg);
 	if (SUCCEEDED(r))
 	{
-		return std::make_unique<CCodeBlob>(code->GetBufferPointer(), code->GetBufferSize());
+		return std::make_unique<CCodeBlob>(code->GetBufferPointer(), static_cast<uint32_t>(code->GetBufferSize()));
 	}
 	else
 	{
