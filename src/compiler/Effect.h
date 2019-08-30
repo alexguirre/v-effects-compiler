@@ -3,6 +3,7 @@
 #include <vector>
 #include <memory>
 #include <unordered_map>
+#include <set>
 
 struct sTechniquePassAssigment;
 struct sTechniquePass;
@@ -11,6 +12,8 @@ class CCodeBlob;
 
 enum class eProgramType
 {
+	// Keep these ordered, programs in FXC have this order
+
 	Vertex = 0,
 	Fragment,
 	Compute,
@@ -31,8 +34,9 @@ private:
 public:
 	CEffect(const std::string& source);
 
-	void GetUsedPrograms(std::vector<std::string>& outEntrypoints, eProgramType type) const;
+	void GetUsedPrograms(std::set<std::string>& outEntrypoints, eProgramType type) const;
 	const CCodeBlob& GetProgramCode(const std::string& entrypoint) const;
+	void GetPassPrograms(const sTechniquePass& pass, uint8_t outPrograms[static_cast<size_t>(eProgramType::NumberOfTypes)]) const;
 
 	inline const std::string& Source() const { return mSource; }
 	inline const std::vector<sTechnique>& Techniques() const { return mTechniques; }

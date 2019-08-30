@@ -40,6 +40,7 @@ void CEffectSaver::SaveTo(const fs::path& filePath) const
 	WritePrograms(f, eProgramType::Hull);
 	WriteBuffers(f, true);
 	WriteBuffers(f, false);
+	WriteTechniques(f);
 
 	// TODO: finish CEffectSaver::SaveTo
 }
@@ -98,7 +99,7 @@ void CEffectSaver::WritePrograms(std::ostream& o, eProgramType type) const
 {
 	if (type == eProgramType::Vertex || type == eProgramType::Fragment)
 	{
-		std::vector<std::string> entrypoints;
+		std::set<std::string> entrypoints;
 		mEffect.GetUsedPrograms(entrypoints, type);
 
 		if (entrypoints.size() > 255 - 1)
@@ -251,7 +252,7 @@ void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 	std::set<sBufferVariableDesc, sBufferVariableDesc::Comparer> bufferVars;
 	for (int i = 0; i < static_cast<int>(eProgramType::NumberOfTypes); i++)
 	{
-		std::vector<std::string> programs;
+		std::set<std::string> programs;
 		mEffect.GetUsedPrograms(programs, static_cast<eProgramType>(i));
 
 		for (const auto& p : programs)
@@ -284,6 +285,41 @@ void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 	}
 
 	// TODO: buffer variables
+	WriteUInt8(o, 0);
+}
+
+void CEffectSaver::WriteTechniques(std::ostream& o) const
+{
+	if (mEffect.Techniques().size() > 255)
+	{
+		throw std::exception("Too many techniques");
+	}
+
+	WriteUInt8(o, static_cast<uint8_t>(mEffect.Techniques().size()));
+
+	for (auto& t : mEffect.Techniques())
+	{
+		WriteLengthPrefixedString(o, t.Name);
+
+		if (t.Passes.size() > 255)
+		{
+			throw std::exception("Too many passes");
+		}
+
+		WriteUInt8(o, static_cast<uint8_t>(t.Passes.size())); // pass count
+		for (auto& p : t.Passes)
+		{
+			uint8_t programs[static_cast<size_t>(eProgramType::NumberOfTypes)];
+			mEffect.GetPassPrograms(p, programs);
+			for (uint8_t idx : programs)
+			{
+				WriteUInt8(o, idx);
+			}
+
+			// TODO: pass assignments
+			WriteUInt8(o, 0); // assignment count
+		}
+	}
 }
 
 void CEffectSaver::WriteLengthPrefixedString(std::ostream& o, const std::string& str) const

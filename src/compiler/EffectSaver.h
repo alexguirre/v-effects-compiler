@@ -20,6 +20,7 @@ private:
 	void WriteAnnotations(std::ostream& o) const;
 	void WritePrograms(std::ostream& o, eProgramType type) const;
 	void WriteBuffers(std::ostream& o, bool globals) const;
+	void WriteTechniques(std::ostream& o) const;
 
 	void WriteNullProgram(std::ostream& o) const;
 

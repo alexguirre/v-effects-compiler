@@ -182,7 +182,7 @@ void CEffect::EnsureProgramsCode()
 	{
 		eProgramType type = static_cast<eProgramType>(i);
 
-		std::vector<std::string> entrypoints;
+		std::set<std::string> entrypoints;
 		GetUsedPrograms(entrypoints, type);
 
 		for (const auto& e : entrypoints)
@@ -237,7 +237,7 @@ static const char* GetAssignmentTypeForProgram(eProgramType type)
 	throw std::invalid_argument("Invalid program type");
 }
 
-void CEffect::GetUsedPrograms(std::vector<std::string>& outEntrypoints, eProgramType type) const
+void CEffect::GetUsedPrograms(std::set<std::string>& outEntrypoints, eProgramType type) const
 {
 	outEntrypoints.clear();
 
@@ -251,9 +251,46 @@ void CEffect::GetUsedPrograms(std::vector<std::string>& outEntrypoints, eProgram
 			{
 				if (a.Type == assignmentType)
 				{
-					outEntrypoints.push_back(a.Value);
+					outEntrypoints.insert(a.Value);
 				}
 			}
+		}
+	}
+}
+
+void CEffect::GetPassPrograms(const sTechniquePass& pass, uint8_t outPrograms[static_cast<size_t>(eProgramType::NumberOfTypes)]) const
+{
+	std::set<std::string> programs;
+
+	for (int i = 0; i < static_cast<int>(eProgramType::NumberOfTypes); i++)
+	{
+		eProgramType type = static_cast<eProgramType>(i);
+		GetUsedPrograms(programs, type);
+
+		std::string programName;
+		const char* assignmentType = GetAssignmentTypeForProgram(type);
+		for (auto& a : pass.Assigments)
+		{
+			if (a.Type == assignmentType)
+			{
+				programName = a.Value;
+			}
+		}
+
+		auto e = programs.find(programName);
+		if (e == programs.end())
+		{
+			outPrograms[i] = 0; // NULL program
+		}
+		else
+		{
+			ptrdiff_t index = std::distance(programs.begin(), e) + 1; // +1 because first program is NULL program which is not returned by GetUsedPrograms
+			if (index > std::numeric_limits<uint8_t>::max())
+			{
+				throw std::exception("Program index too big");
+			}
+
+			outPrograms[i] = static_cast<uint8_t>(index);
 		}
 	}
 }
