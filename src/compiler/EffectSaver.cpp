@@ -58,8 +58,42 @@ void CEffectSaver::WriteAnnotations(std::ostream& o) const
 	WriteUInt8(o, 0); // no annotations support for now
 }
 
-static void GetProgramBuffers(const CCodeBlob& code, std::vector<std::tuple<std::string, int>>& outBuffersAndRegisters, std::vector<std::string>& outBufferVariables)
+struct sBufferDesc
 {
+	std::string Name;
+	uint32_t Size = 0;
+	uint32_t Register = 0;
+
+	struct Comparer
+	{
+		bool operator()(const sBufferDesc& lhs, const sBufferDesc& rhs) const
+		{
+			return lhs.Name < rhs.Name;
+		}
+	};
+};
+
+struct sBufferVariableDesc
+{
+	std::string Name;
+
+	struct Comparer
+	{
+		bool operator()(const sBufferVariableDesc& lhs, const sBufferVariableDesc& rhs) const
+		{
+			return lhs.Name < rhs.Name;
+		}
+	};
+};
+
+static void GetBuffersDesc(const CCodeBlob& code, std::set<sBufferDesc, sBufferDesc::Comparer>& outBuffers, std::set<sBufferVariableDesc, sBufferVariableDesc::Comparer>& outBufferVars, bool globals, bool locals)
+{
+	static std::set<std::string_view> knownGlobalBuffers =
+	{
+		"rage_clipplanes", "rage_matrices", "misc_global", "lighting_globals", "rage_bonemtx", "rage_cbinst_matrices", "rage_cbinst_update"
+		// TODO: there's some more global buffers
+	};
+
 	CComPtr<ID3D11ShaderReflection> reflection;
 	HRESULT r = D3DReflect(code.Data(), code.Size(), __uuidof(ID3D11ShaderReflection), reinterpret_cast<void**>(&reflection));
 	if (FAILED(r))
@@ -79,19 +113,33 @@ static void GetProgramBuffers(const CCodeBlob& code, std::vector<std::tuple<std:
 		D3D11_SHADER_BUFFER_DESC bufferDesc;
 		buffer->GetDesc(&bufferDesc);
 
-		for (uint32_t j = 0; j < bufferDesc.Variables; j++)
+		bool isGlobalBuffer = knownGlobalBuffers.find(bufferDesc.Name) != knownGlobalBuffers.end();
+		if ((globals && isGlobalBuffer) || (!globals && !isGlobalBuffer) ||
+			(locals && !isGlobalBuffer) || (!locals && isGlobalBuffer))
 		{
-			ID3D11ShaderReflectionVariable* var = buffer->GetVariableByIndex(j);
-			D3D11_SHADER_VARIABLE_DESC varDesc;
-			var->GetDesc(&varDesc);
+			D3D11_SHADER_INPUT_BIND_DESC bindDesc;
+			reflection->GetResourceBindingDescByName(bufferDesc.Name, &bindDesc);
 
-			outBufferVariables.push_back(varDesc.Name);
+			sBufferDesc d;
+			d.Name = bufferDesc.Name;
+			d.Size = bufferDesc.Size;
+			d.Register = bindDesc.BindPoint;
+
+			outBuffers.insert(d);
+
+			for (uint32_t j = 0; j < bufferDesc.Variables; j++)
+			{
+				ID3D11ShaderReflectionVariable* var = buffer->GetVariableByIndex(j);
+				D3D11_SHADER_VARIABLE_DESC varDesc;
+				var->GetDesc(&varDesc);
+				
+				// TODO: buffer variables require more data for WriteBuffers
+				sBufferVariableDesc v;
+				v.Name = varDesc.Name;
+
+				outBufferVars.insert(v);
+			}
 		}
-
-		D3D11_SHADER_INPUT_BIND_DESC bindDesc;
-		reflection->GetResourceBindingDescByName(bufferDesc.Name, &bindDesc);
-
-		outBuffersAndRegisters.push_back(std::make_tuple(bindDesc.Name, bindDesc.BindPoint));
 	}
 }
 
@@ -114,16 +162,16 @@ void CEffectSaver::WritePrograms(std::ostream& o, eProgramType type) const
 		for (const auto& e : entrypoints)
 		{
 			const CCodeBlob& code = mEffect.GetProgramCode(e);
-			std::vector<std::tuple<std::string, int>> buffersAndRegisters;
-			std::vector<std::string> bufferVariables;
-			GetProgramBuffers(code, buffersAndRegisters, bufferVariables);
+			std::set<sBufferDesc, sBufferDesc::Comparer> buffers;
+			std::set<sBufferVariableDesc, sBufferVariableDesc::Comparer> bufferVars;
+			GetBuffersDesc(code, buffers, bufferVars, true, true);
 			
-			if (buffersAndRegisters.size() > std::numeric_limits<uint8_t>::max())
+			if (buffers.size() > std::numeric_limits<uint8_t>::max())
 			{
 				throw std::exception("Too many buffers");
 			}
 
-			if (bufferVariables.size() > std::numeric_limits<uint8_t>::max())
+			if (bufferVars.size() > std::numeric_limits<uint8_t>::max())
 			{
 				throw std::exception("Too many buffer variables");
 			}
@@ -131,18 +179,18 @@ void CEffectSaver::WritePrograms(std::ostream& o, eProgramType type) const
 			WriteLengthPrefixedString(o, e);
 
 			// buffers variables
-			WriteUInt8(o, static_cast<uint8_t>(bufferVariables.size())); // var count
-			for (const auto& v : bufferVariables)
+			WriteUInt8(o, static_cast<uint8_t>(bufferVars.size())); // var count
+			for (const auto& v : bufferVars)
 			{
-				WriteLengthPrefixedString(o, v); // var name
+				WriteLengthPrefixedString(o, v.Name); // var name
 			}
 
 			// buffers
-			WriteUInt8(o, static_cast<uint8_t>(buffersAndRegisters.size())); // buffer count
-			for (const auto& b : buffersAndRegisters)
+			WriteUInt8(o, static_cast<uint8_t>(buffers.size())); // buffer count
+			for (const auto& b : buffers)
 			{
-				WriteLengthPrefixedString(o, std::get<0>(b)); // buffer name
-				WriteUInt8(o, static_cast<uint8_t>(std::get<1>(b))); // register
+				WriteLengthPrefixedString(o, b.Name); // buffer name
+				WriteUInt8(o, static_cast<uint8_t>(b.Register)); // register
 				WriteUInt8(o, 0); // what does this byte mean?
 			}
 
@@ -173,79 +221,6 @@ void CEffectSaver::WriteNullProgram(std::ostream& o) const
 	WriteUInt32(o, 0); // bytecode size
 }
 
-struct sBufferDesc
-{
-	std::string Name;
-	uint32_t Size = 0;
-	uint16_t Register = 0;
-
-	struct Comparer
-	{
-		bool operator()(const sBufferDesc& lhs, const sBufferDesc& rhs) const
-		{
-			return lhs.Name < rhs.Name;
-		}
-	};
-};
-
-struct sBufferVariableDesc
-{
-	std::string Name;
-
-	struct Comparer
-	{
-		bool operator()(const sBufferVariableDesc& lhs, const sBufferVariableDesc& rhs) const
-		{
-			return lhs.Name < rhs.Name;
-		}
-	};
-};
-
-static void GetBuffersDesc(const CCodeBlob& code, std::set<sBufferDesc, sBufferDesc::Comparer>& outBuffers, std::set<sBufferVariableDesc, sBufferVariableDesc::Comparer>& outBufferVars, bool globals)
-{
-	static std::set<std::string_view> knownGlobalBuffers =
-	{ 
-		"rage_clipplanes", "rage_matrices", "misc_global", "lighting_globals", "rage_bonemtx", "rage_cbinst_matrices", "rage_cbinst_update"
-		// TODO: there's some more global buffers
-	};
-
-	CComPtr<ID3D11ShaderReflection> reflection;
-	HRESULT r = D3DReflect(code.Data(), code.Size(), __uuidof(ID3D11ShaderReflection), reinterpret_cast<void**>(&reflection));
-	if (FAILED(r))
-	{
-		return;
-	}
-
-	D3D11_SHADER_DESC shaderDesc;
-	if (FAILED(reflection->GetDesc(&shaderDesc)))
-	{
-		return;
-	}
-
-	for (uint32_t i = 0; i < shaderDesc.ConstantBuffers; i++)
-	{
-		ID3D11ShaderReflectionConstantBuffer* buffer = reflection->GetConstantBufferByIndex(i);
-		D3D11_SHADER_BUFFER_DESC bufferDesc;
-		buffer->GetDesc(&bufferDesc);
-
-		bool isGlobalBuffer = knownGlobalBuffers.find(bufferDesc.Name) != knownGlobalBuffers.end();
-		if ((globals && isGlobalBuffer) || (!globals && !isGlobalBuffer))
-		{
-			D3D11_SHADER_INPUT_BIND_DESC bindDesc;
-			reflection->GetResourceBindingDescByName(bufferDesc.Name, &bindDesc);
-
-			sBufferDesc d;
-			d.Name = bufferDesc.Name;
-			d.Size = bufferDesc.Size;
-			d.Register = bindDesc.BindPoint;
-
-			outBuffers.insert(d);
-
-			// TODO: buffer variables
-		}
-	}
-}
-
 void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 {
 	std::set<sBufferDesc, sBufferDesc::Comparer> buffers;
@@ -258,7 +233,7 @@ void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 		for (const auto& p : programs)
 		{
 			const CCodeBlob& code = mEffect.GetProgramCode(p);
-			GetBuffersDesc(code, buffers, bufferVars, globals);
+			GetBuffersDesc(code, buffers, bufferVars, globals, !globals);
 		}
 	}
 
@@ -279,7 +254,7 @@ void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 		WriteUInt32(o, b.Size);
 		for (int i = 0; i < static_cast<int>(eProgramType::NumberOfTypes); i++)
 		{
-			WriteUInt16(o, b.Register);
+			WriteUInt16(o, static_cast<uint16_t>(b.Register));
 		}
 		WriteLengthPrefixedString(o, b.Name);
 	}
