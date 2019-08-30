@@ -102,7 +102,7 @@ void CEffectSaver::WritePrograms(std::ostream& o, eProgramType type) const
 		std::set<std::string> entrypoints;
 		mEffect.GetUsedPrograms(entrypoints, type);
 
-		if (entrypoints.size() > 255 - 1)
+		if (entrypoints.size() > std::numeric_limits<uint8_t>::max() - 1) // -1 to account for implicit NULL program
 		{
 			throw std::exception("Too many programs");
 		}
@@ -118,12 +118,12 @@ void CEffectSaver::WritePrograms(std::ostream& o, eProgramType type) const
 			std::vector<std::string> bufferVariables;
 			GetProgramBuffers(code, buffersAndRegisters, bufferVariables);
 			
-			if (buffersAndRegisters.size() > 255)
+			if (buffersAndRegisters.size() > std::numeric_limits<uint8_t>::max())
 			{
 				throw std::exception("Too many buffers");
 			}
 
-			if (bufferVariables.size() > 255)
+			if (bufferVariables.size() > std::numeric_limits<uint8_t>::max())
 			{
 				throw std::exception("Too many buffer variables");
 			}
@@ -262,12 +262,12 @@ void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 		}
 	}
 
-	if (buffers.size() > 255)
+	if (buffers.size() > std::numeric_limits<uint8_t>::max())
 	{
 		throw std::exception("Too many buffers");
 	}
 
-	if (bufferVars.size() > 255)
+	if (bufferVars.size() > std::numeric_limits<uint8_t>::max())
 	{
 		throw std::exception("Too many buffer variables");
 	}
@@ -277,7 +277,7 @@ void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 	for (auto& b : buffers)
 	{
 		WriteUInt32(o, b.Size);
-		for (int i = 0; i < 6; i++) // 6 times, one for each program type
+		for (int i = 0; i < static_cast<int>(eProgramType::NumberOfTypes); i++)
 		{
 			WriteUInt16(o, b.Register);
 		}
@@ -290,7 +290,7 @@ void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 
 void CEffectSaver::WriteTechniques(std::ostream& o) const
 {
-	if (mEffect.Techniques().size() > 255)
+	if (mEffect.Techniques().size() > std::numeric_limits<uint8_t>::max())
 	{
 		throw std::exception("Too many techniques");
 	}
@@ -301,7 +301,7 @@ void CEffectSaver::WriteTechniques(std::ostream& o) const
 	{
 		WriteLengthPrefixedString(o, t.Name);
 
-		if (t.Passes.size() > 255)
+		if (t.Passes.size() > std::numeric_limits<uint8_t>::max())
 		{
 			throw std::exception("Too many passes");
 		}
@@ -325,7 +325,7 @@ void CEffectSaver::WriteTechniques(std::ostream& o) const
 void CEffectSaver::WriteLengthPrefixedString(std::ostream& o, const std::string& str) const
 {
 	size_t length = str.size() + 1; // + null terminator
-	if (length > 255)
+	if (length > std::numeric_limits<uint8_t>::max())
 	{
 		throw std::invalid_argument("String too long");
 	}
