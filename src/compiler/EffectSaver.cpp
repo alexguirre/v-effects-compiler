@@ -7,6 +7,7 @@
 #include <tuple>
 #include <set>
 #include "Effect.h"
+#include "Hash.h"
 
 namespace fs = std::filesystem;
 
@@ -76,6 +77,10 @@ struct sBufferDesc
 struct sBufferVariableDesc
 {
 	std::string Name;
+	uint32_t Offset = 0;
+	uint32_t Count = 0;
+	uint8_t Type = 0;
+	uint32_t BufferNameHash = 0;
 
 	struct Comparer
 	{
@@ -85,6 +90,88 @@ struct sBufferVariableDesc
 		}
 	};
 };
+
+static uint8_t VarTypeD3D11ToRage(ID3D11ShaderReflectionType* type)
+{
+	enum grcEffectVarType : uint8_t
+	{
+		float_ = 2,
+		float2 = 3,
+		float3 = 4,
+		float4 = 5,
+		texture = 6,
+		bool_ = 7,
+		float3x4 = 8,
+		float4x4 = 9,
+		string = 10,
+		int_ = 11,
+		int2 = 12,
+		int3 = 13,
+		int4 = 14,
+	};
+
+	D3D11_SHADER_TYPE_DESC typeDesc;
+	type->GetDesc(&typeDesc);
+
+	switch (typeDesc.Type)
+	{
+	case D3D_SVT_FLOAT:
+	{
+		if (typeDesc.Class == D3D_SVC_MATRIX_ROWS || typeDesc.Class == D3D_SVC_MATRIX_COLUMNS)
+		{
+			if (typeDesc.Rows == 3 && typeDesc.Columns == 4)
+			{
+				return grcEffectVarType::float3x4;
+			}
+			else if (typeDesc.Rows == 4 && typeDesc.Columns == 4)
+			{
+				return grcEffectVarType::float4x4;
+			}
+		}
+		else
+		{
+			switch (typeDesc.Columns)
+			{
+			case 1: return grcEffectVarType::float_;
+			case 2: return grcEffectVarType::float2;
+			case 3: return grcEffectVarType::float3;
+			case 4: return grcEffectVarType::float4;
+			}
+		}
+		break;
+	}
+	case D3D_SVT_INT:
+	case D3D_SVT_UINT:
+	{
+		switch (typeDesc.Columns)
+		{
+		case 1: return grcEffectVarType::int_;
+		case 2: return grcEffectVarType::int2;
+		case 3: return grcEffectVarType::int3;
+		case 4: return grcEffectVarType::int4;
+		}
+		break;
+	}
+	case D3D_SVT_STRING:
+		return grcEffectVarType::string;
+	case D3D_SVT_BOOL:
+		return grcEffectVarType::bool_;
+	case D3D_SVT_TEXTURE:
+	case D3D_SVT_TEXTURE1D:
+	case D3D_SVT_TEXTURE2D:
+	case D3D_SVT_TEXTURE3D:
+	case D3D_SVT_TEXTURECUBE:
+	case D3D_SVT_SAMPLER:
+	case D3D_SVT_SAMPLER1D:
+	case D3D_SVT_SAMPLER2D:
+	case D3D_SVT_SAMPLER3D:
+	case D3D_SVT_SAMPLERCUBE:
+		return grcEffectVarType::texture;
+	}
+
+	// TODO: support more variable types
+	throw std::exception("Unsupported variable type");
+}
 
 static void GetBuffersDesc(const CCodeBlob& code, std::set<sBufferDesc, sBufferDesc::Comparer>& outBuffers, std::set<sBufferVariableDesc, sBufferVariableDesc::Comparer>& outBufferVars, bool globals, bool locals)
 {
@@ -132,10 +219,18 @@ static void GetBuffersDesc(const CCodeBlob& code, std::set<sBufferDesc, sBufferD
 				ID3D11ShaderReflectionVariable* var = buffer->GetVariableByIndex(j);
 				D3D11_SHADER_VARIABLE_DESC varDesc;
 				var->GetDesc(&varDesc);
-				
+
+				ID3D11ShaderReflectionType* varType = var->GetType();
+				D3D11_SHADER_TYPE_DESC varTypeDesc;
+				varType->GetDesc(&varTypeDesc);
+
 				// TODO: buffer variables require more data for WriteBuffers
 				sBufferVariableDesc v;
 				v.Name = varDesc.Name;
+				v.Offset = varDesc.StartOffset;
+				v.Count = varTypeDesc.Elements;
+				v.Type = VarTypeD3D11ToRage(varType);
+				v.BufferNameHash = joaat(bufferDesc.Name);
 
 				outBufferVars.insert(v);
 			}
@@ -259,8 +354,21 @@ void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 		WriteLengthPrefixedString(o, b.Name);
 	}
 
-	// TODO: buffer variables
-	WriteUInt8(o, 0);
+	// TODO: variables not from cbuffers, like texture or samplers
+	WriteUInt8(o, static_cast<uint8_t>(bufferVars.size()));
+	for (auto& v : bufferVars)
+	{
+		WriteUInt8(o, v.Type); // type
+		WriteUInt8(o, v.Count); // count
+		WriteUInt8(o, 0); // flags 1, TODO: variable flags
+		WriteUInt8(o, 0); // flags 2
+		WriteLengthPrefixedString(o, v.Name); // name
+		WriteLengthPrefixedString(o, v.Name); // description
+		WriteUInt32(o, v.Offset); // offset
+		WriteUInt32(o, v.BufferNameHash); // buffer name hash
+		WriteUInt8(o, 0); // annotation count, no annotations support for now
+		WriteUInt8(o, 0); // initial values count, TODO: variable initial values
+	}
 }
 
 void CEffectSaver::WriteTechniques(std::ostream& o) const

@@ -96,11 +96,13 @@
   <ItemGroup>
     <ClCompile Include="Effect.cpp" />
     <ClCompile Include="EffectSaver.cpp" />
+    <ClCompile Include="Hash.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Effect.h" />
     <ClInclude Include="EffectSaver.h" />
+    <ClInclude Include="Hash.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
