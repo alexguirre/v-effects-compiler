@@ -37,6 +37,7 @@ public:
 	void GetUsedPrograms(std::set<std::string>& outEntrypoints, eProgramType type) const;
 	const CCodeBlob& GetProgramCode(const std::string& entrypoint) const;
 	void GetPassPrograms(const sTechniquePass& pass, uint8_t outPrograms[static_cast<size_t>(eProgramType::NumberOfTypes)]) const;
+	std::string PreprocessSource() const;
 
 	inline const std::string& Source() const { return mSource; }
 	inline const std::vector<sTechnique>& Techniques() const { return mTechniques; }

@@ -154,6 +154,9 @@ int main()
 
 	std::unique_ptr<CEffect> fx = std::make_unique<CEffect>(src);
 
+	std::cout << "Preprocessed source:\n";
+	std::cout << fx->PreprocessSource() << "\n";
+
 	std::cout << "Techniques\n";
 	for (auto& t : fx->Techniques())
 	{

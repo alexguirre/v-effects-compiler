@@ -15,8 +15,11 @@ namespace technique
 	struct str_technique : TAO_PEGTL_STRING("technique") {};
 	struct str_pass : TAO_PEGTL_STRING("pass") {};
 
+	// this rule doesn't support multi-line directives but should be good enough for our case since we parse
+	// the techniques on the preprocessed source code and the only directives should be `#line` directives
+	struct preprocessor_directive : seq<bol, star<space>, one<'#'>, until<eolf>> {};
 	struct comment : seq<two<'/'>, until<eolf>> {};
-	struct sp : sor<space, comment> {};
+	struct sp : sor<space, comment, preprocessor_directive> {};
 	struct sp_s : star<sp> {};
 	struct sp_p : plus<sp> {};
 
@@ -143,6 +146,20 @@ const CCodeBlob& CEffect::GetProgramCode(const std::string& entrypoint) const
 	}
 }
 
+std::string CEffect::PreprocessSource() const
+{
+	CComPtr<ID3DBlob> codeText, errorMsg;
+	HRESULT r = D3DPreprocess(mSource.c_str(), mSource.size(), "CEffect", nullptr, nullptr, &codeText, &errorMsg);
+	if (SUCCEEDED(r))
+	{
+		return std::string(reinterpret_cast<const char*>(codeText->GetBufferPointer()), static_cast<size_t>(codeText->GetBufferSize()));
+	}
+	else
+	{
+		throw std::exception(errorMsg ? reinterpret_cast<const char*>(errorMsg->GetBufferPointer()) : "Compilation error");
+	}
+}
+
 void CEffect::EnsureTechniques()
 {
 	if (!mTechniques.empty())
@@ -151,7 +168,7 @@ void CEffect::EnsureTechniques()
 	}
 
 	technique::state s;
-	pegtl::string_input<> in(mSource, "CEffect");
+	pegtl::string_input<> in(PreprocessSource(), "CEffect");
 	try
 	{
 		pegtl::parse<technique::grammar, technique::action>(in, s);
