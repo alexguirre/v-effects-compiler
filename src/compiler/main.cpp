@@ -165,9 +165,15 @@ int main()
 		for (auto& p : t.Passes)
 		{
 			std::cout << "		Pass\n";
+			std::cout << "			VertexShader = " << p.Shaders[static_cast<int>(eProgramType::Vertex)] << ";\n";
+			std::cout << "			FragmentShader = " << p.Shaders[static_cast<int>(eProgramType::Fragment)] << ";\n";
+			std::cout << "			ComputeShader = " << p.Shaders[static_cast<int>(eProgramType::Compute)] << ";\n";
+			std::cout << "			DomainShader = " << p.Shaders[static_cast<int>(eProgramType::Domain)] << ";\n";
+			std::cout << "			GeometryShader = " << p.Shaders[static_cast<int>(eProgramType::Geometry)] << ";\n";
+			std::cout << "			HullShader = " << p.Shaders[static_cast<int>(eProgramType::Hull)] << ";\n";
 			for (auto& a : p.Assigments)
 			{
-				std::cout << "			" << a.Type << " = " << a.Value << "\n";
+				std::cout << "			" << a.Type << " = " << a.Value << ";\n";
 			}
 		}
 	}

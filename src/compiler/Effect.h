@@ -42,6 +42,10 @@ public:
 	inline const std::string& Source() const { return mSource; }
 	inline const std::vector<sTechnique>& Techniques() const { return mTechniques; }
 
+	static constexpr const char* GetTargetForProgram(eProgramType type);
+	static constexpr const char* GetAssignmentTypeForProgram(eProgramType type);
+
+	static constexpr const char* NullProgramName = "NULL";
 private:
 	void EnsureTechniques();
 	void EnsureProgramsCode();
@@ -57,6 +61,11 @@ struct sAssigment
 
 struct sTechniquePass
 {
+	std::string Shaders[static_cast<size_t>(eProgramType::NumberOfTypes)] =
+	{
+		CEffect::NullProgramName, CEffect::NullProgramName, CEffect::NullProgramName,
+		CEffect::NullProgramName, CEffect::NullProgramName, CEffect::NullProgramName,
+	};
 	std::vector<sAssigment> Assigments;
 };
 

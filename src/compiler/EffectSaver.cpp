@@ -215,7 +215,7 @@ void CEffectSaver::WritePrograms(std::ostream& o, eProgramType type) const
 
 void CEffectSaver::WriteNullProgram(std::ostream& o) const
 {
-	WriteLengthPrefixedString(o, "NULL");
+	WriteLengthPrefixedString(o, CEffect::NullProgramName);
 	WriteUInt8(o, 0); // buffer variable count
 	WriteUInt8(o, 0); // buffer count
 	WriteUInt32(o, 0); // bytecode size

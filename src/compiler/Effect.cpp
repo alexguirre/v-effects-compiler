@@ -121,7 +121,23 @@ namespace technique
 		static void apply(const Input& in, state& s)
 		{
 			s.CurrentAssignment.Value = in.string();
-			s.CurrentPass.Assigments.push_back(s.CurrentAssignment);
+			
+			bool isShaderAssignment = false;
+			for (int i = 0; i < static_cast<int>(eProgramType::NumberOfTypes); i++)
+			{
+				eProgramType type = static_cast<eProgramType>(i);
+				if (s.CurrentAssignment.Type == CEffect::GetAssignmentTypeForProgram(type))
+				{
+					s.CurrentPass.Shaders[i] = s.CurrentAssignment.Value;
+					isShaderAssignment = true;
+					break;
+				}
+			}
+
+			if (!isShaderAssignment)
+			{
+				s.CurrentPass.Assigments.push_back(s.CurrentAssignment);
+			}
 		}
 	};
 } // namespace technique
@@ -209,21 +225,6 @@ void CEffect::EnsureProgramsCode()
 	}
 }
 
-static const char* GetTargetForProgram(eProgramType type)
-{
-	switch (type)
-	{
-	case eProgramType::Vertex: return "vs_4_0";
-	case eProgramType::Fragment: return "ps_4_0";
-	case eProgramType::Compute: return "cs_5_0";
-	case eProgramType::Domain: return "ds_5_0";
-	case eProgramType::Geometry: return "gs_5_0";
-	case eProgramType::Hull: return "hs_5_0";
-	}
-
-	throw std::invalid_argument("Invalid program type");
-}
-
 std::unique_ptr<CCodeBlob> CEffect::CompileProgram(const std::string& entrypoint, eProgramType type) const
 {
 	// Flags used in the game shaders (except for D3DCOMPILE_NO_PRESHADER, which doesn't seem to be supported in our version of d3dcompile)
@@ -242,7 +243,22 @@ std::unique_ptr<CCodeBlob> CEffect::CompileProgram(const std::string& entrypoint
 	}
 }
 
-static const char* GetAssignmentTypeForProgram(eProgramType type)
+constexpr const char* CEffect::GetTargetForProgram(eProgramType type)
+{
+	switch (type)
+	{
+	case eProgramType::Vertex: return "vs_4_0";
+	case eProgramType::Fragment: return "ps_4_0";
+	case eProgramType::Compute: return "cs_5_0";
+	case eProgramType::Domain: return "ds_5_0";
+	case eProgramType::Geometry: return "gs_5_0";
+	case eProgramType::Hull: return "hs_5_0";
+	}
+
+	throw std::invalid_argument("Invalid program type");
+}
+
+constexpr const char* CEffect::GetAssignmentTypeForProgram(eProgramType type)
 {
 	switch (type)
 	{
@@ -261,18 +277,14 @@ void CEffect::GetUsedPrograms(std::set<std::string>& outEntrypoints, eProgramTyp
 {
 	outEntrypoints.clear();
 
-	const char* assignmentType = GetAssignmentTypeForProgram(type);
-
 	for (auto& t : mTechniques)
 	{
 		for (auto& p : t.Passes)
 		{
-			for (auto& a : p.Assigments)
+			const std::string& shader = p.Shaders[static_cast<int>(type)];
+			if (!shader.empty() && shader != CEffect::NullProgramName)
 			{
-				if (a.Type == assignmentType)
-				{
-					outEntrypoints.insert(a.Value);
-				}
+				outEntrypoints.insert(shader);
 			}
 		}
 	}
@@ -287,15 +299,7 @@ void CEffect::GetPassPrograms(const sTechniquePass& pass, uint8_t outPrograms[st
 		eProgramType type = static_cast<eProgramType>(i);
 		GetUsedPrograms(programs, type);
 
-		std::string programName;
-		const char* assignmentType = GetAssignmentTypeForProgram(type);
-		for (auto& a : pass.Assigments)
-		{
-			if (a.Type == assignmentType)
-			{
-				programName = a.Value;
-			}
-		}
+		const std::string& programName = pass.Shaders[i];
 
 		auto e = programs.find(programName);
 		if (e == programs.end())
