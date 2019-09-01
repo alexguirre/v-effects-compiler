@@ -53,10 +53,55 @@ private:
 	std::unique_ptr<CCodeBlob> CompileProgram(const std::string& entryPoint, eProgramType type) const;
 };
 
-struct sAssigment
+enum class eAssignmentType : uint32_t
 {
-	std::string Type;
-	std::string Value;
+	// Rasterizer State
+	FillMode = 1,
+	CullMode = 6,
+
+	// DepthStencil State
+	DepthEnable = 0,
+	DepthWriteMask = 2,
+	DepthFunc = 7,
+	StencilEnable = 11,
+	StencilReadMask = 17,
+	StencilWriteMask = 18,
+	FrontFaceStencilFail = 12,
+	FrontFaceStencilDepthFail = 13,
+	FrontFaceStencilPass = 14,
+	FrontFaceStencilFunc = 15,
+
+	// TODO: BackFace
+
+	// Blend State
+	AlphaToCoverageEnable = 32,
+	BlendEnable0 = 10,
+	SrcBlend0 = 4,
+	DestBlend0 = 5,
+	BlendOp0 = 23,
+	RenderTargetWriteMask0 = 19,
+
+	// TODO: SrcBlendAlpha, DestBlendAlpha, BlendOpAlpha
+};
+
+struct sAssignmentValues
+{
+	std::unordered_map<std::string_view, uint32_t> NamedValues;
+
+	static const sAssignmentValues Any, FillMode, CullMode, Bool, DepthWriteMask,
+								ComparisonFunc, StencilOp, Blend, BlendOp;
+};
+
+struct sAssignment
+{
+	eAssignmentType Type;
+	uint32_t Value;
+
+	static const std::unordered_map<eAssignmentType, sAssignmentValues> ValidAssignments;
+	static const std::unordered_map<std::string_view, eAssignmentType> NameToType;
+	static const std::unordered_map<eAssignmentType, std::string_view> TypeToName;
+
+	static sAssignment GetAssignment(const std::string& type, const std::string& value);
 };
 
 struct sTechniquePass
@@ -66,7 +111,7 @@ struct sTechniquePass
 		CEffect::NullProgramName, CEffect::NullProgramName, CEffect::NullProgramName,
 		CEffect::NullProgramName, CEffect::NullProgramName, CEffect::NullProgramName,
 	};
-	std::vector<sAssigment> Assigments;
+	std::vector<sAssignment> Assigments;
 };
 
 struct sTechnique

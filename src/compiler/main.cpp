@@ -7,7 +7,7 @@
 int main()
 {
 	std::string src(R"(
-	cbuffer rage_matrices : register(b0)
+	cbuffer rage_matrices : register(b1)
 	{
 	  row_major float4x4 gWorld;         // Offset:    0 Size:    64
 	  row_major float4x4 gWorldView;     // Offset:   64 Size:    64
@@ -15,7 +15,7 @@ int main()
 	  row_major float4x4 gViewInverse;   // Offset:  192 Size:    64
 	}
 
-	cbuffer LaserParam : register(b1)
+	cbuffer LaserParam : register(b10)
 	{
 		float gMaxDisplacement;            // Offset:    0 Size:     4
 		float gCameraDistanceAtMaxDisplacement;// Offset:    4 Size:     4
@@ -102,54 +102,23 @@ int main()
 			FrontFaceStencilDepthFail = KEEP;
 			FrontFaceStencilPass = REPLACE;
 			FrontFaceStencilFunc = ALWAYS;
-			BackFaceStencilFail = KEEP;
-			BackFaceStencilDepthFail = KEEP;
-			BackFaceStencilPass = REPLACE;
-			BackFaceStencilFunc = ALWAYS;
+			//BackFaceStencilFail = KEEP;
+			//BackFaceStencilDepthFail = KEEP;
+			//BackFaceStencilPass = REPLACE;
+			//BackFaceStencilFunc = ALWAYS;
 
 			// Blend State
 			AlphaToCoverageEnable = FALSE;
 			BlendEnable0 = TRUE;
-			SrcBlend0 = SRC_ALPHA;
-			DestBlend0 = ONE;
+			SrcBlend0 = ONE;
+			DestBlend0 = INV_SRC_ALPHA;
 			BlendOp0 = ADD;
-			SrcBlendAlpha0 = SRC_ALPHA;
-			DestBlendAlpha0 = INV_SRC_ALPHA;
-			BlendOpAlpha0 = ADD;
-			RenderTargetWriteMask0 = 15; 
+			//SrcBlendAlpha0 = SRC_ALPHA;
+			//DestBlendAlpha0 = INV_SRC_ALPHA;
+			//BlendOpAlpha0 = ADD;
+			RenderTargetWriteMask0 = 15;
 		}
 	}
-
-
-	technique TestTech // a comment
-	{ // a comment
-		pass
-		{
-			firstentry=NONE;second=TRUE;
-			third	  = FILL;
-		} // a comment
-	}
-
-	technique  // a comment
-	Second
-	{
-		pass
-		{
-			SomeState = GREATER_EQUAL;
-			OtherState=GREATER;
-			SomeOtherState = FALSE;
-		}
-		pass
-		{
-			SecondSomeState     =   LESS_EQUAL;
-			SecondOtherState	=	LESS;
-			SecondSomeOtherState=TRUE;
-		}
-	}
-
-
-
-		technique Third{pass{TheState=TRUE;AndAnotherState=GREATER;}pass{S=NONE;}}
 	)");
 
 	std::unique_ptr<CEffect> fx = std::make_unique<CEffect>(src);
@@ -173,7 +142,7 @@ int main()
 			std::cout << "			HullShader = " << p.Shaders[static_cast<int>(eProgramType::Hull)] << ";\n";
 			for (auto& a : p.Assigments)
 			{
-				std::cout << "			" << a.Type << " = " << a.Value << ";\n";
+				std::cout << "			" << sAssignment::TypeToName.find(a.Type)->second << " = " << a.Value << ";\n";
 			}
 		}
 	}

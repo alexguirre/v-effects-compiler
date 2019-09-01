@@ -3,6 +3,7 @@
 #include <tao/pegtl/analyze.hpp>
 #include <tao/pegtl/contrib/raw_string.hpp>
 #include <d3dcompiler.h>
+#include <d3d11.h>
 #include <atlbase.h>
 
 namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
@@ -44,10 +45,16 @@ namespace technique
 
 	struct state
 	{
+		struct sRawAssignment
+		{
+			std::string Type;
+			std::string Value;
+		};
+
 		int Depth = 0;
 		sTechnique CurrentTechnique;
 		sTechniquePass CurrentPass;
-		sAssigment CurrentAssignment;
+		sRawAssignment CurrentAssignment;
 		std::vector<sTechnique> Techniques;
 	};
 
@@ -109,7 +116,7 @@ namespace technique
 		template<typename Input>
 		static void apply(const Input& in, state& s)
 		{
-			s.CurrentAssignment = sAssigment();
+			s.CurrentAssignment = state::sRawAssignment();
 			s.CurrentAssignment.Type = in.string();
 		}
 	};
@@ -136,7 +143,7 @@ namespace technique
 
 			if (!isShaderAssignment)
 			{
-				s.CurrentPass.Assigments.push_back(s.CurrentAssignment);
+				s.CurrentPass.Assigments.push_back(sAssignment::GetAssignment(s.CurrentAssignment.Type, s.CurrentAssignment.Value));
 			}
 		}
 	};
@@ -195,10 +202,6 @@ void CEffect::EnsureTechniques()
 		std::cerr << e.what() << std::endl
 			<< in.line_at(p) << std::endl
 			<< std::string(p.byte_in_line, ' ') << '^' << std::endl;
-	}
-	catch (const std::exception& e)
-	{
-		std::cerr << e.what() << std::endl;
 	}
 
 	mTechniques = s.Techniques;
@@ -328,3 +331,205 @@ CCodeBlob::CCodeBlob(const void* data, uint32_t size)
 		memcpy_s(mData.get(), mSize, data, mSize);
 	}
 }
+
+sAssignment sAssignment::GetAssignment(const std::string& type, const std::string& value)
+{
+	auto typeEntry = NameToType.find(type);
+	if (typeEntry == NameToType.end())
+	{
+		throw std::runtime_error("Unknown assignment type '" + type + "'");
+	}
+
+	eAssignmentType typeId = typeEntry->second;
+
+	auto validAssignmentsEntry = sAssignment::ValidAssignments.find(typeId);
+	if (validAssignmentsEntry == sAssignment::ValidAssignments.end())
+	{
+		throw std::runtime_error("Unknown assignment type id '" + std::to_string(static_cast<uint32_t>(typeId)) + "' ('" + type + "')");
+	}
+
+	uint32_t rawValue = 0;
+	const sAssignmentValues& validAssignments = validAssignmentsEntry->second;
+	if (validAssignments.NamedValues.empty())
+	{
+		constexpr const char* HexPrefix = "0x";
+
+		// parse a decimal or hexadecimal value
+		int base = 10;
+		if (value.compare(0, strlen(HexPrefix), HexPrefix) == 0) // is hex
+		{
+			base = 16;
+		}
+
+		rawValue = std::stoul(value, nullptr, base);
+	}
+	else
+	{
+		// find the value for the name
+		auto valueEntry = validAssignments.NamedValues.find(value);
+		if (valueEntry == validAssignments.NamedValues.end())
+		{
+			throw std::runtime_error("Unknown value '" + value + "' for type '" + type + "'");
+		}
+
+		rawValue = valueEntry->second;
+	}
+
+	return { typeId, rawValue };
+}
+
+const sAssignmentValues sAssignmentValues::Any =
+{
+	{
+		// empty
+	}
+};
+
+const sAssignmentValues sAssignmentValues::FillMode =
+{
+	{
+		{ "WIREFRAME",	D3D11_FILL_WIREFRAME },
+		{ "SOLID",		D3D11_FILL_SOLID },
+	}
+};
+
+const sAssignmentValues sAssignmentValues::CullMode =
+{
+	{
+		{ "NONE",	D3D11_CULL_NONE },
+		{ "FRONT",	D3D11_CULL_FRONT },
+		{ "BACK",	D3D11_CULL_BACK },
+	}
+};
+
+const sAssignmentValues sAssignmentValues::Bool =
+{
+	{
+		{ "FALSE",	false },
+		{ "TRUE",	true },
+	}
+};
+
+const sAssignmentValues sAssignmentValues::DepthWriteMask =
+{
+	{
+		{ "ZERO",	D3D11_DEPTH_WRITE_MASK_ZERO },
+		{ "ALL",	D3D11_DEPTH_WRITE_MASK_ALL },
+	}
+};
+
+const sAssignmentValues sAssignmentValues::ComparisonFunc =
+{
+	{
+		{ "NEVER",			D3D11_COMPARISON_NEVER },
+		{ "LESS",			D3D11_COMPARISON_LESS },
+		{ "EQUAL",			D3D11_COMPARISON_EQUAL },
+		{ "LESS_EQUAL",		D3D11_COMPARISON_LESS_EQUAL },
+		{ "GREATER",		D3D11_COMPARISON_GREATER },
+		{ "NOT_EQUAL",		D3D11_COMPARISON_NOT_EQUAL },
+		{ "GREATER_EQUAL",	D3D11_COMPARISON_GREATER_EQUAL },
+		{ "ALWAYS",			D3D11_COMPARISON_ALWAYS },
+	}
+};
+
+const sAssignmentValues sAssignmentValues::StencilOp =
+{
+	{
+		{ "KEEP",		D3D11_STENCIL_OP_KEEP },
+		{ "ZERO",		D3D11_STENCIL_OP_ZERO },
+		{ "REPLACE",	D3D11_STENCIL_OP_REPLACE },
+		{ "INCR_SAT",	D3D11_STENCIL_OP_INCR_SAT },
+		{ "DECR_SAT",	D3D11_STENCIL_OP_DECR_SAT },
+		{ "INVERT",		D3D11_STENCIL_OP_INVERT },
+		{ "INCR",		D3D11_STENCIL_OP_INCR },
+		{ "DECR",		D3D11_STENCIL_OP_DECR },
+	}
+};
+
+const sAssignmentValues sAssignmentValues::Blend =
+{
+	{
+		{ "ZERO",				D3D11_BLEND_ZERO },
+		{ "ONE",				D3D11_BLEND_ONE },
+		{ "SRC_COLOR",			D3D11_BLEND_SRC_COLOR },
+		{ "INV_SRC_COLOR",		D3D11_BLEND_INV_SRC_COLOR },
+		{ "SRC_ALPHA",			D3D11_BLEND_SRC_ALPHA },
+		{ "INV_SRC_ALPHA",		D3D11_BLEND_INV_SRC_ALPHA },
+		{ "DEST_ALPHA",			D3D11_BLEND_DEST_ALPHA },
+		{ "INV_DEST_ALPHA",		D3D11_BLEND_INV_DEST_ALPHA },
+		{ "DEST_COLOR",			D3D11_BLEND_DEST_COLOR },
+		{ "INV_DEST_COLOR",		D3D11_BLEND_INV_DEST_COLOR },
+		{ "SRC_ALPHA_SAT",		D3D11_BLEND_SRC_ALPHA_SAT },
+		{ "BLEND_FACTOR",		D3D11_BLEND_BLEND_FACTOR },
+		{ "INV_BLEND_FACTOR",	D3D11_BLEND_INV_BLEND_FACTOR },
+		{ "SRC1_COLOR",			D3D11_BLEND_SRC1_COLOR },
+		{ "INV_SRC1_COLOR",		D3D11_BLEND_INV_SRC1_COLOR },
+		{ "SRC1_ALPHA",			D3D11_BLEND_SRC1_ALPHA },
+		{ "INV_SRC1_ALPHA",		D3D11_BLEND_INV_SRC1_ALPHA },
+	}
+};
+
+const sAssignmentValues sAssignmentValues::BlendOp =
+{
+	{
+		{ "ADD",			D3D11_BLEND_OP_ADD },
+		{ "SUBTRACT",		D3D11_BLEND_OP_SUBTRACT },
+		{ "REV_SUBTRACT",	D3D11_BLEND_OP_REV_SUBTRACT },
+		{ "MIN",			D3D11_BLEND_OP_MIN },
+		{ "MAX",			D3D11_BLEND_OP_MAX },
+	}
+};
+
+const std::unordered_map<eAssignmentType, sAssignmentValues> sAssignment::ValidAssignments =
+{
+	{ eAssignmentType::FillMode,					sAssignmentValues::FillMode },
+	{ eAssignmentType::CullMode,					sAssignmentValues::CullMode },
+	{ eAssignmentType::DepthEnable,					sAssignmentValues::Bool },
+	{ eAssignmentType::DepthWriteMask,				sAssignmentValues::DepthWriteMask },
+	{ eAssignmentType::DepthFunc,					sAssignmentValues::ComparisonFunc },
+	{ eAssignmentType::StencilEnable,				sAssignmentValues::Bool },
+	{ eAssignmentType::StencilReadMask,				sAssignmentValues::Any },
+	{ eAssignmentType::StencilWriteMask,			sAssignmentValues::Any },
+	{ eAssignmentType::FrontFaceStencilFail,		sAssignmentValues::StencilOp },
+	{ eAssignmentType::FrontFaceStencilDepthFail,	sAssignmentValues::StencilOp },
+	{ eAssignmentType::FrontFaceStencilPass,		sAssignmentValues::StencilOp },
+	{ eAssignmentType::FrontFaceStencilFunc,		sAssignmentValues::ComparisonFunc },
+	{ eAssignmentType::AlphaToCoverageEnable,		sAssignmentValues::Bool },
+	{ eAssignmentType::BlendEnable0,				sAssignmentValues::Bool },
+	{ eAssignmentType::SrcBlend0,					sAssignmentValues::Blend },
+	{ eAssignmentType::DestBlend0,					sAssignmentValues::Blend },
+	{ eAssignmentType::BlendOp0,					sAssignmentValues::BlendOp },
+	{ eAssignmentType::RenderTargetWriteMask0,		sAssignmentValues::Any },
+};
+
+const std::unordered_map<std::string_view, eAssignmentType> sAssignment::NameToType =
+{
+	{ "FillMode",					eAssignmentType::FillMode },
+	{ "CullMode",					eAssignmentType::CullMode },
+	{ "DepthEnable",				eAssignmentType::DepthEnable },
+	{ "DepthWriteMask",				eAssignmentType::DepthWriteMask },
+	{ "DepthFunc",					eAssignmentType::DepthFunc },
+	{ "StencilEnable",				eAssignmentType::StencilEnable },
+	{ "StencilReadMask",			eAssignmentType::StencilReadMask },
+	{ "StencilWriteMask",			eAssignmentType::StencilWriteMask },
+	{ "FrontFaceStencilFail",		eAssignmentType::FrontFaceStencilFail },
+	{ "FrontFaceStencilDepthFail",	eAssignmentType::FrontFaceStencilDepthFail },
+	{ "FrontFaceStencilPass",		eAssignmentType::FrontFaceStencilPass },
+	{ "FrontFaceStencilFunc",		eAssignmentType::FrontFaceStencilFunc },
+	{ "AlphaToCoverageEnable",		eAssignmentType::AlphaToCoverageEnable },
+	{ "BlendEnable0",				eAssignmentType::BlendEnable0 },
+	{ "SrcBlend0",					eAssignmentType::SrcBlend0 },
+	{ "DestBlend0",					eAssignmentType::DestBlend0 },
+	{ "BlendOp0",					eAssignmentType::BlendOp0 },
+	{ "RenderTargetWriteMask0",		eAssignmentType::RenderTargetWriteMask0 },
+};
+
+const std::unordered_map<eAssignmentType, std::string_view> sAssignment::TypeToName = []()
+{
+	std::unordered_map<eAssignmentType, std::string_view> tmpMap;
+	for (auto& e : sAssignment::NameToType)
+	{
+		tmpMap.insert({ e.second, e.first });
+	}
+	return tmpMap;
+}();
