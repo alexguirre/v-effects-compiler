@@ -252,7 +252,7 @@ void CEffectSaver::WritePrograms(std::ostream& o, eProgramType type) const
 
 		WriteUInt8(o, static_cast<uint8_t>(entrypoints.size() + 1)); // program count
 		
-		WriteNullProgram(o);
+		WriteNullProgram(o, type);
 
 		for (const auto& e : entrypoints)
 		{
@@ -304,15 +304,19 @@ void CEffectSaver::WritePrograms(std::ostream& o, eProgramType type) const
 		// TODO: WritePrograms for programs other than vertex/fragment
 		WriteUInt8(o, 1); // program count
 
-		WriteNullProgram(o);
+		WriteNullProgram(o, type);
 	}
 }
 
-void CEffectSaver::WriteNullProgram(std::ostream& o) const
+void CEffectSaver::WriteNullProgram(std::ostream& o, eProgramType type) const
 {
 	WriteLengthPrefixedString(o, CEffect::NullProgramName);
 	WriteUInt8(o, 0); // buffer variable count
 	WriteUInt8(o, 0); // buffer count
+	if (type == eProgramType::Geometry)
+	{
+		WriteUInt8(o, 0); // unk count
+	}
 	WriteUInt32(o, 0); // bytecode size
 }
 

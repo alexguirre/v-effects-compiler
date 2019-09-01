@@ -22,7 +22,7 @@ private:
 	void WriteBuffers(std::ostream& o, bool globals) const;
 	void WriteTechniques(std::ostream& o) const;
 
-	void WriteNullProgram(std::ostream& o) const;
+	void WriteNullProgram(std::ostream& o, eProgramType type) const;
 
 	void WriteLengthPrefixedString(std::ostream& o, const std::string& str) const;
 	void WriteUInt32(std::ostream& o, uint32_t v) const;
