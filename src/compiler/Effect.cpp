@@ -175,7 +175,7 @@ std::string CEffect::PreprocessSource() const
 	HRESULT r = D3DPreprocess(mSource.c_str(), mSource.size(), "CEffect", nullptr, nullptr, &codeText, &errorMsg);
 	if (SUCCEEDED(r))
 	{
-		return std::string(reinterpret_cast<const char*>(codeText->GetBufferPointer()), static_cast<size_t>(codeText->GetBufferSize()));
+		return std::string(reinterpret_cast<const char*>(codeText->GetBufferPointer()), static_cast<size_t>(codeText->GetBufferSize()) - 1); // -1 to exclude null terminator from string length
 	}
 	else
 	{
