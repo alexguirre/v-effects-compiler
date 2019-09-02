@@ -179,7 +179,7 @@ std::string CEffect::PreprocessSource() const
 	}
 	else
 	{
-		throw std::exception(errorMsg ? reinterpret_cast<const char*>(errorMsg->GetBufferPointer()) : "Compilation error");
+		throw std::runtime_error(errorMsg ? reinterpret_cast<const char*>(errorMsg->GetBufferPointer()) : "Preprocessor error");
 	}
 }
 
@@ -246,7 +246,7 @@ std::unique_ptr<CCodeBlob> CEffect::CompileProgram(const std::string& entrypoint
 	}
 	else
 	{
-		throw std::exception(errorMsg ? reinterpret_cast<const char*>(errorMsg->GetBufferPointer()) : "Compilation error");
+		throw std::runtime_error(errorMsg ? reinterpret_cast<const char*>(errorMsg->GetBufferPointer()) : "Compilation error");
 	}
 }
 
@@ -318,7 +318,7 @@ void CEffect::GetPassPrograms(const sTechniquePass& pass, uint8_t outPrograms[st
 			ptrdiff_t index = std::distance(programs.begin(), e) + 1; // +1 because first program is NULL program which is not returned by GetUsedPrograms
 			if (index > std::numeric_limits<uint8_t>::max())
 			{
-				throw std::exception("Program index too big");
+				throw std::runtime_error("Program index too big");
 			}
 
 			outPrograms[i] = static_cast<uint8_t>(index);

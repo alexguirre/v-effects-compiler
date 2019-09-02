@@ -170,7 +170,7 @@ static uint8_t VarTypeD3D11ToRage(ID3D11ShaderReflectionType* type)
 	}
 
 	// TODO: support more variable types
-	throw std::exception("Unsupported variable type");
+	throw std::runtime_error("Unsupported variable type");
 }
 
 static void GetBuffersDesc(const CCodeBlob& code, std::set<sBufferDesc, sBufferDesc::Comparer>& outBuffers, std::set<sBufferVariableDesc, sBufferVariableDesc::Comparer>& outBufferVars, bool globals, bool locals)
@@ -247,7 +247,7 @@ void CEffectSaver::WritePrograms(std::ostream& o, eProgramType type) const
 
 		if (entrypoints.size() > std::numeric_limits<uint8_t>::max() - 1) // -1 to account for implicit NULL program
 		{
-			throw std::exception("Too many programs");
+			throw std::length_error("Number of programs exceeds " + std::to_string(std::numeric_limits<uint8_t>::max()));
 		}
 
 		WriteUInt8(o, static_cast<uint8_t>(entrypoints.size() + 1)); // program count
@@ -263,12 +263,12 @@ void CEffectSaver::WritePrograms(std::ostream& o, eProgramType type) const
 			
 			if (buffers.size() > std::numeric_limits<uint8_t>::max())
 			{
-				throw std::exception("Too many buffers");
+				throw std::length_error("Number of buffers exceeds " + std::to_string(std::numeric_limits<uint8_t>::max()));
 			}
 
 			if (bufferVars.size() > std::numeric_limits<uint8_t>::max())
 			{
-				throw std::exception("Too many buffer variables");
+				throw std::length_error("Number of buffer variables exceeds " + std::to_string(std::numeric_limits<uint8_t>::max()));
 			}
 
 			WriteLengthPrefixedString(o, e);
@@ -338,12 +338,12 @@ void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 
 	if (buffers.size() > std::numeric_limits<uint8_t>::max())
 	{
-		throw std::exception("Too many buffers");
+		throw std::length_error("Number of buffers exceeds " + std::to_string(std::numeric_limits<uint8_t>::max()));
 	}
 
 	if (bufferVars.size() > std::numeric_limits<uint8_t>::max())
 	{
-		throw std::exception("Too many buffer variables");
+		throw std::length_error("Number of buffer variables exceeds " + std::to_string(std::numeric_limits<uint8_t>::max()));
 	}
 
 	// buffers
@@ -379,7 +379,7 @@ void CEffectSaver::WriteTechniques(std::ostream& o) const
 {
 	if (mEffect.Techniques().size() > std::numeric_limits<uint8_t>::max())
 	{
-		throw std::exception("Too many techniques");
+		throw std::length_error("Number of techniques exceeds " + std::to_string(std::numeric_limits<uint8_t>::max()));
 	}
 
 	WriteUInt8(o, static_cast<uint8_t>(mEffect.Techniques().size()));
@@ -390,7 +390,7 @@ void CEffectSaver::WriteTechniques(std::ostream& o) const
 
 		if (t.Passes.size() > std::numeric_limits<uint8_t>::max())
 		{
-			throw std::exception("Too many passes");
+			throw std::length_error("Number of passes exceeds " + std::to_string(std::numeric_limits<uint8_t>::max()));
 		}
 
 		WriteUInt8(o, static_cast<uint8_t>(t.Passes.size())); // pass count
@@ -418,7 +418,7 @@ void CEffectSaver::WriteLengthPrefixedString(std::ostream& o, const std::string&
 	size_t length = str.size() + 1; // + null terminator
 	if (length > std::numeric_limits<uint8_t>::max())
 	{
-		throw std::invalid_argument("String too long");
+		throw std::length_error("String length exceeds " + std::to_string(std::numeric_limits<uint8_t>::max()) + " characters");
 	}
 
 	WriteUInt8(o, static_cast<uint8_t>(length));
