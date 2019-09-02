@@ -12,60 +12,69 @@ namespace fs = std::filesystem;
 
 int main(int argc, char** argv)
 {
-	TCLAP::CmdLine cmd("Shader effect compiler for Grand Theft Auto V", ' ', "WIP");
-	TCLAP::UnlabeledValueArg<std::string> inputArg("input", "Specifies the filename of the input file.", true, "", "input_file");
-	TCLAP::ValueArg<std::string> outputArg("o", "output", "Specifies the filename of the output file.", false, "", "file");
-	TCLAP::SwitchArg preprocessArg("p", "preprocess", "Preprocesses the input file instead of compiling it.", false);
-
-	cmd.add(inputArg);
-	cmd.add(outputArg);
-	cmd.add(preprocessArg);
-
-	cmd.parse(argc, argv);
-
-	fs::path inputPath = fs::absolute(inputArg.getValue());
-	
-	if (!fs::exists(inputPath))
+	try
 	{
-		throw std::runtime_error("Path '" + inputPath.string() + "' does not exist");
-	}
+		TCLAP::CmdLine cmd("Shader effect compiler for Grand Theft Auto V", ' ', "WIP");
+		TCLAP::UnlabeledValueArg<std::string> inputArg("input", "Specifies the filename of the input file.", true, "", "input_file");
+		TCLAP::ValueArg<std::string> outputArg("o", "output", "Specifies the filename of the output file.", false, "", "file");
+		TCLAP::SwitchArg preprocessArg("p", "preprocess", "Preprocesses the input file instead of compiling it.", false);
 
-	if (!fs::is_regular_file(inputPath))
-	{
-		throw std::runtime_error("Path '" + inputPath.string() + "' does not refer to a file");
-	}
+		cmd.add(inputArg);
+		cmd.add(outputArg);
+		cmd.add(preprocessArg);
 
-	fs::path outputPath = inputPath;
-	if (outputArg.isSet())
-	{
-		outputPath = fs::absolute(outputArg.getValue());
-	}
-	else if (preprocessArg.getValue())
-	{
-		outputPath.replace_filename("preprocessed." + outputPath.filename().string());
-	}
-	else
-	{
-		outputPath.replace_extension("fxc");
-	}
-	
-	std::ifstream inputFile(inputPath);
-	std::stringstream srcBuffer;
-	srcBuffer << inputFile.rdbuf();
+		cmd.parse(argc, argv);
 
-	std::string src = srcBuffer.str();
-	std::unique_ptr<CEffect> fx = std::make_unique<CEffect>(src);
+		fs::path inputPath = fs::absolute(inputArg.getValue());
 
-	if (preprocessArg.getValue())
-	{
-		std::ofstream outputStream(outputPath, std::ios::trunc);
-		outputStream << fx->PreprocessSource();
-	}
-	else
-	{
-		CEffectSaver saver(*fx);
-		saver.SaveTo(outputPath);
-	}
+		if (!fs::exists(inputPath))
+		{
+			throw std::runtime_error("Path '" + inputPath.string() + "' does not exist");
+		}
 
-	return 0;
+		if (!fs::is_regular_file(inputPath))
+		{
+			throw std::runtime_error("Path '" + inputPath.string() + "' does not refer to a file");
+		}
+
+		fs::path outputPath = inputPath;
+		if (outputArg.isSet())
+		{
+			outputPath = fs::absolute(outputArg.getValue());
+		}
+		else if (preprocessArg.getValue())
+		{
+			outputPath.replace_filename("preprocessed." + outputPath.filename().string());
+		}
+		else
+		{
+			outputPath.replace_extension("fxc");
+		}
+
+		std::ifstream inputFile(inputPath);
+		std::stringstream srcBuffer;
+		srcBuffer << inputFile.rdbuf();
+
+		std::string src = srcBuffer.str();
+		std::unique_ptr<CEffect> fx = std::make_unique<CEffect>(src);
+
+		if (preprocessArg.getValue())
+		{
+			std::ofstream outputStream(outputPath, std::ios::trunc);
+			outputStream << fx->PreprocessSource();
+		}
+		else
+		{
+			CEffectSaver saver(*fx);
+			saver.SaveTo(outputPath);
+		}
+
+		return EXIT_SUCCESS;
+	}
+	catch(const std::exception& e)
+	{
+		std::cerr << e.what() << std::endl;
+
+		return EXIT_FAILURE;
+	}
 }

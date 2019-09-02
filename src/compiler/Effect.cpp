@@ -199,9 +199,13 @@ void CEffect::EnsureTechniques()
 	catch (const pegtl::parse_error& e)
 	{
 		auto& p = e.positions.front();
-		std::cerr << e.what() << std::endl
-			<< in.line_at(p) << std::endl
-			<< std::string(p.byte_in_line, ' ') << '^' << std::endl;
+
+		throw std::runtime_error(
+			"Technique parser error:\n" +
+			std::string(e.what()) + "\n" +
+			in.line_at(p) + "\n" +
+			std::string(p.byte_in_line, ' ') + "^\n"
+		);
 	}
 
 	mTechniques = s.Techniques;
