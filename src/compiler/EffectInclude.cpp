@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-HRESULT CEffectInclude::Open(D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID* ppData, UINT* pBytes)
+HRESULT CEffectInclude::Open(D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID /* pParentData */, LPCVOID* ppData, UINT* pBytes)
 {
 	switch (IncludeType)
 	{
@@ -33,7 +33,7 @@ HRESULT CEffectInclude::Open(D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPC
 	return E_FAIL;
 }
 
-HRESULT CEffectInclude::Close(LPCVOID pData)
+HRESULT CEffectInclude::Close(LPCVOID /* pData */)
 {
 	// nothing to do
 	return S_OK;

@@ -66,7 +66,7 @@ namespace technique
 	struct action<one<'{'>>
 	{
 		template<typename Input>
-		static void apply(const Input& in, state& s)
+		static void apply(const Input& /* in */, state& s)
 		{
 			s.Depth++;
 
@@ -85,7 +85,7 @@ namespace technique
 	struct action<one<'}'>>
 	{
 		template<typename Input>
-		static void apply(const Input& in, state& s)
+		static void apply(const Input& /* in */, state& s)
 		{
 			s.Depth--;
 

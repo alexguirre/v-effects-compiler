@@ -363,7 +363,7 @@ void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 	for (auto& v : bufferVars)
 	{
 		WriteUInt8(o, v.Type); // type
-		WriteUInt8(o, v.Count); // count
+		WriteUInt8(o, static_cast<uint8_t>(v.Count)); // count
 		WriteUInt8(o, 0); // flags 1, TODO: variable flags
 		WriteUInt8(o, 0); // flags 2
 		WriteLengthPrefixedString(o, v.Name); // name
