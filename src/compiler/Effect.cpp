@@ -5,6 +5,7 @@
 #include <d3dcompiler.h>
 #include <d3d11.h>
 #include <atlbase.h>
+#include "EffectInclude.h"
 
 namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
 
@@ -172,7 +173,7 @@ const CCodeBlob& CEffect::GetProgramCode(const std::string& entrypoint) const
 std::string CEffect::PreprocessSource() const
 {
 	CComPtr<ID3DBlob> codeText, errorMsg;
-	HRESULT r = D3DPreprocess(mSource.c_str(), mSource.size(), "CEffect", nullptr, nullptr, &codeText, &errorMsg);
+	HRESULT r = D3DPreprocess(mSource.c_str(), mSource.size(), "CEffect", nullptr, CEffectInclude::Instance().get(), &codeText, &errorMsg);
 	if (SUCCEEDED(r))
 	{
 		return std::string(reinterpret_cast<const char*>(codeText->GetBufferPointer()), static_cast<size_t>(codeText->GetBufferSize()) - 1); // -1 to exclude null terminator from string length
@@ -237,9 +238,8 @@ std::unique_ptr<CCodeBlob> CEffect::CompileProgram(const std::string& entrypoint
 	// Flags used in the game shaders (except for D3DCOMPILE_NO_PRESHADER, which doesn't seem to be supported in our version of d3dcompile)
 	constexpr uint32_t Flags = D3DCOMPILE_PACK_MATRIX_ROW_MAJOR | D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY;
 
-	// TODO: implement ID3DInclude
 	CComPtr<ID3DBlob> code, errorMsg;
-	HRESULT r = D3DCompile(mSource.c_str(), mSource.size(), "CEffect", nullptr, nullptr, entrypoint.c_str(), GetTargetForProgram(type), Flags, 0, &code, &errorMsg);
+	HRESULT r = D3DCompile(mSource.c_str(), mSource.size(), "CEffect", nullptr, CEffectInclude::Instance().get(), entrypoint.c_str(), GetTargetForProgram(type), Flags, 0, &code, &errorMsg);
 	if (SUCCEEDED(r))
 	{
 		return std::make_unique<CCodeBlob>(code->GetBufferPointer(), static_cast<uint32_t>(code->GetBufferSize()));

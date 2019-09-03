@@ -5,10 +5,22 @@
     <ClCompile Include="Effect.cpp" />
     <ClCompile Include="EffectSaver.cpp" />
     <ClCompile Include="Hash.cpp" />
+    <ClCompile Include="EffectInclude.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Effect.h" />
     <ClInclude Include="EffectSaver.h" />
     <ClInclude Include="Hash.h" />
+    <ClInclude Include="EffectInclude.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="builtin-shaders">
+      <UniqueIdentifier>{562d9ade-604b-47c8-92a2-e51b9e7d70c1}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="global_buffers.fxh">
+      <Filter>builtin-shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

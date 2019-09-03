@@ -15,7 +15,7 @@ int main(int argc, char** argv)
 	try
 	{
 		TCLAP::CmdLine cmd("Shader effect compiler for Grand Theft Auto V", ' ', "WIP");
-		TCLAP::UnlabeledValueArg<std::string> inputArg("input", "Specifies the filename of the input file.", true, "", "input_file");
+		TCLAP::UnlabeledValueArg<std::string> inputArg("input_file", "Specifies the filename of the input file.", true, "", "input_file");
 		TCLAP::ValueArg<std::string> outputArg("o", "output", "Specifies the filename of the output file.", false, "", "file");
 		TCLAP::SwitchArg preprocessArg("p", "preprocess", "Preprocesses the input file instead of compiling it.", false);
 

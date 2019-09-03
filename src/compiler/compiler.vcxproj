@@ -95,14 +95,19 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Effect.cpp" />
+    <ClCompile Include="EffectInclude.cpp" />
     <ClCompile Include="EffectSaver.cpp" />
     <ClCompile Include="Hash.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Effect.h" />
+    <ClInclude Include="EffectInclude.h" />
     <ClInclude Include="EffectSaver.h" />
     <ClInclude Include="Hash.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="global_buffers.fxh" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
