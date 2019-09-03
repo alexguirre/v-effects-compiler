@@ -4,6 +4,8 @@
 #include <memory>
 #include <unordered_map>
 #include <set>
+#include <filesystem>
+#include <optional>
 
 struct sTechniquePassAssigment;
 struct sTechniquePass;
@@ -28,11 +30,12 @@ class CEffect
 {
 private:
 	std::string mSource;
+	std::optional<std::filesystem::path> mSourceFilename;
 	std::vector<sTechnique> mTechniques;
 	std::unordered_map<std::string, std::unique_ptr<CCodeBlob>> mProgramsCode;
 
 public:
-	CEffect(const std::string& source);
+	CEffect(const std::string& source, std::optional<std::filesystem::path> sourceFilename = std::nullopt);
 
 	void GetUsedPrograms(std::set<std::string>& outEntrypoints, eProgramType type) const;
 	const CCodeBlob& GetProgramCode(const std::string& entrypoint) const;
@@ -40,6 +43,7 @@ public:
 	std::string PreprocessSource() const;
 
 	inline const std::string& Source() const { return mSource; }
+	inline const std::optional<std::filesystem::path>& SourceFilename() const { return mSourceFilename; }
 	inline const std::vector<sTechnique>& Techniques() const { return mTechniques; }
 
 	static constexpr const char* GetTargetForProgram(eProgramType type);

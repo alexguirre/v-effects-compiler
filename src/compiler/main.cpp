@@ -56,7 +56,7 @@ int main(int argc, char** argv)
 		srcBuffer << inputFile.rdbuf();
 
 		std::string src = srcBuffer.str();
-		std::unique_ptr<CEffect> fx = std::make_unique<CEffect>(src);
+		std::unique_ptr<CEffect> fx = std::make_unique<CEffect>(src, inputPath);
 
 		if (preprocessArg.getValue())
 		{
