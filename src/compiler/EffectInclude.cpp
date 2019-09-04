@@ -4,6 +4,27 @@
 
 namespace fs = std::filesystem;
 
+CEffectInclude::sFileBuffer::sFileBuffer()
+{
+	// nothing to do
+}
+
+CEffectInclude::sFileBuffer::sFileBuffer(sFileBuffer&& other) noexcept
+	: Buffer(std::move(other.Buffer)), Path(std::move(other.Path))
+{
+}
+
+CEffectInclude::sFileBuffer& CEffectInclude::sFileBuffer::operator=(sFileBuffer&& other) noexcept
+{
+	if (this != &other)
+	{
+		Buffer = std::move(other.Buffer);
+		Path = std::move(other.Path);
+	}
+
+	return *this;
+}
+
 CEffectInclude::CEffectInclude(const fs::path& localRootDirectory)
 	: mLocalRootDirectory(fs::absolute(localRootDirectory))
 {
@@ -33,7 +54,7 @@ HRESULT CEffectInclude::Open(D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPC
 	case D3D_INCLUDE_LOCAL:
 	{
 		const fs::path& rootDir = pParentData ? 
-			mFileBuffersPaths.at(reinterpret_cast<uintptr_t>(pParentData)).parent_path() :
+			mFileBuffers.at(reinterpret_cast<uintptr_t>(pParentData)).Path.parent_path() :
 			mLocalRootDirectory;
 
 		fs::path filePath = fs::canonical(rootDir / pFileName);
@@ -45,15 +66,19 @@ HRESULT CEffectInclude::Open(D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPC
 			file.seekg(0, std::ios::beg);
 
 			// read file into buffer
-			std::vector<char>& buffer = mFileBuffers.emplace_back();
-			buffer.resize(fileSize);
-			file.read(buffer.data(), fileSize);
+			sFileBuffer f;
+			f.Buffer.resize(fileSize);
+			file.read(f.Buffer.data(), fileSize);
 			
 			// save the path for this file in case it includes more files relative to it
-			mFileBuffersPaths.try_emplace(reinterpret_cast<uintptr_t>(buffer.data()), filePath);
+			f.Path = filePath;
 
-			*ppData = buffer.data();
-			*pBytes = static_cast<UINT>(buffer.size());
+			*ppData = f.Buffer.data();
+			*pBytes = static_cast<UINT>(f.Buffer.size());
+
+			const uintptr_t key = reinterpret_cast<uintptr_t>(f.Buffer.data());
+			mFileBuffers.try_emplace(key, std::move(f));
+
 			return S_OK;
 		}
 
@@ -68,20 +93,10 @@ HRESULT CEffectInclude::Open(D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPC
 
 HRESULT CEffectInclude::Close(LPCVOID pData)
 {
-	// search for the buffer with the same data pointer
-	decltype(mFileBuffers)::const_iterator toDelete = mFileBuffers.cend();
-	for (auto b = mFileBuffers.cbegin(); b != mFileBuffers.cend(); b++)
-	{
-		if (b->data() == pData)
-		{
-			toDelete = b;
-			break;
-		}
-	}
-
+	// search for the buffer with the same data pointer and delete it
+	auto toDelete = mFileBuffers.find(reinterpret_cast<uintptr_t>(pData));
 	if (toDelete != mFileBuffers.cend())
 	{
-		mFileBuffersPaths.erase(reinterpret_cast<uintptr_t>(toDelete->data()));
 		mFileBuffers.erase(toDelete);
 	}
 

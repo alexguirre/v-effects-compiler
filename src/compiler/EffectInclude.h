@@ -6,9 +6,21 @@
 class CEffectInclude : public ID3DInclude
 {
 private:
+	struct sFileBuffer
+	{
+		std::vector<char> Buffer;
+		std::filesystem::path Path;
+
+		sFileBuffer();
+		sFileBuffer(sFileBuffer&&) noexcept;
+		sFileBuffer& operator=(sFileBuffer&&) noexcept;
+		sFileBuffer(const sFileBuffer&) = delete;
+		sFileBuffer& operator=(const sFileBuffer&) = delete;
+		
+	};
+
 	std::filesystem::path mLocalRootDirectory;
-	std::vector<std::vector<char>> mFileBuffers;
-	std::unordered_map<uintptr_t, std::filesystem::path> mFileBuffersPaths;
+	std::unordered_map<uintptr_t, sFileBuffer> mFileBuffers;
 
 public:
 	CEffectInclude(const std::filesystem::path& localRootDirectory);
