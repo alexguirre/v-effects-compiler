@@ -11,9 +11,9 @@ private:
 		std::vector<char> Buffer;
 		std::filesystem::path Path;
 
-		sFileBuffer();
-		sFileBuffer(sFileBuffer&&) noexcept;
-		sFileBuffer& operator=(sFileBuffer&&) noexcept;
+		sFileBuffer() = default;
+		sFileBuffer(sFileBuffer&&) = default;
+		sFileBuffer& operator=(sFileBuffer&&) = default;
 		sFileBuffer(const sFileBuffer&) = delete;
 		sFileBuffer& operator=(const sFileBuffer&) = delete;
 		

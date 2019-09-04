@@ -4,27 +4,6 @@
 
 namespace fs = std::filesystem;
 
-CEffectInclude::sFileBuffer::sFileBuffer()
-{
-	// nothing to do
-}
-
-CEffectInclude::sFileBuffer::sFileBuffer(sFileBuffer&& other) noexcept
-	: Buffer(std::move(other.Buffer)), Path(std::move(other.Path))
-{
-}
-
-CEffectInclude::sFileBuffer& CEffectInclude::sFileBuffer::operator=(sFileBuffer&& other) noexcept
-{
-	if (this != &other)
-	{
-		Buffer = std::move(other.Buffer);
-		Path = std::move(other.Path);
-	}
-
-	return *this;
-}
-
 CEffectInclude::CEffectInclude(const fs::path& localRootDirectory)
 	: mLocalRootDirectory(fs::absolute(localRootDirectory))
 {
