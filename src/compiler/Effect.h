@@ -6,6 +6,7 @@
 #include <set>
 #include <filesystem>
 #include <optional>
+#include "EffectInclude.h"
 
 struct sTechniquePassAssigment;
 struct sTechniquePass;
@@ -30,12 +31,12 @@ class CEffect
 {
 private:
 	std::string mSource;
-	std::optional<std::filesystem::path> mSourceFilename;
+	std::filesystem::path mSourceFilename;
 	std::vector<sTechnique> mTechniques;
 	std::unordered_map<std::string, std::unique_ptr<CCodeBlob>> mProgramsCode;
 
 public:
-	CEffect(const std::string& source, std::optional<std::filesystem::path> sourceFilename = std::nullopt);
+	CEffect(const std::string& source, const std::filesystem::path& sourceFilename);
 
 	void GetUsedPrograms(std::set<std::string>& outEntrypoints, eProgramType type) const;
 	const CCodeBlob& GetProgramCode(const std::string& entrypoint) const;
@@ -43,7 +44,7 @@ public:
 	std::string PreprocessSource() const;
 
 	inline const std::string& Source() const { return mSource; }
-	inline const std::optional<std::filesystem::path>& SourceFilename() const { return mSourceFilename; }
+	inline const std::filesystem::path& SourceFilename() const { return mSourceFilename; }
 	inline const std::vector<sTechnique>& Techniques() const { return mTechniques; }
 
 	static constexpr const char* GetTargetForProgram(eProgramType type);
@@ -54,6 +55,7 @@ private:
 	void EnsureTechniques();
 	void EnsureProgramsCode();
 
+	std::unique_ptr<CEffectInclude> CreateInclude() const;
 	std::unique_ptr<CCodeBlob> CompileProgram(const std::string& entryPoint, eProgramType type) const;
 };
 

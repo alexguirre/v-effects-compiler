@@ -150,14 +150,11 @@ namespace technique
 	};
 } // namespace technique
 
-CEffect::CEffect(const std::string& source, std::optional<std::filesystem::path> sourceFilename)
-	: mSource(source), mSourceFilename(sourceFilename)
-{
-	if (mSourceFilename.has_value())
-	{
-		mSourceFilename = std::filesystem::absolute(mSourceFilename.value());
-	}
+namespace fs = std::filesystem;
 
+CEffect::CEffect(const std::string& source, const fs::path& sourceFilename)
+	: mSource(source), mSourceFilename(fs::absolute(sourceFilename))
+{
 	EnsureTechniques();
 	EnsureProgramsCode();
 }
@@ -178,9 +175,9 @@ const CCodeBlob& CEffect::GetProgramCode(const std::string& entrypoint) const
 std::string CEffect::PreprocessSource() const
 {
 	CComPtr<ID3DBlob> codeText, errorMsg;
-	std::string sourceFileStr = mSourceFilename.has_value() ? mSourceFilename.value().string() : "";
-	const char* sourceFile = sourceFileStr.empty() ? nullptr : sourceFileStr.c_str();
-	HRESULT r = D3DPreprocess(mSource.c_str(), mSource.size(), sourceFile, nullptr, CEffectInclude::Instance().get(), &codeText, &errorMsg);
+	std::string sourceFileStr = mSourceFilename.string();
+	std::unique_ptr<CEffectInclude> include = CreateInclude();
+	HRESULT r = D3DPreprocess(mSource.c_str(), mSource.size(), sourceFileStr.c_str(), nullptr, include.get(), &codeText, &errorMsg);
 	if (SUCCEEDED(r))
 	{
 		return std::string(reinterpret_cast<const char*>(codeText->GetBufferPointer()), static_cast<size_t>(codeText->GetBufferSize()) - 1); // -1 to exclude null terminator from string length
@@ -240,15 +237,20 @@ void CEffect::EnsureProgramsCode()
 	}
 }
 
+std::unique_ptr<CEffectInclude> CEffect::CreateInclude() const
+{
+	return std::make_unique<CEffectInclude>(mSourceFilename.parent_path());
+}
+
 std::unique_ptr<CCodeBlob> CEffect::CompileProgram(const std::string& entrypoint, eProgramType type) const
 {
 	// Flags used in the game shaders (except for D3DCOMPILE_NO_PRESHADER, which doesn't seem to be supported in our version of d3dcompile)
 	constexpr uint32_t Flags = D3DCOMPILE_PACK_MATRIX_ROW_MAJOR | D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY;
 
 	CComPtr<ID3DBlob> code, errorMsg;
-	std::string sourceFileStr = mSourceFilename.has_value() ? mSourceFilename.value().string() : "";
-	const char* sourceFile = sourceFileStr.empty() ? nullptr : sourceFileStr.c_str();
-	HRESULT r = D3DCompile(mSource.c_str(), mSource.size(), sourceFile, nullptr, CEffectInclude::Instance().get(), entrypoint.c_str(), GetTargetForProgram(type), Flags, 0, &code, &errorMsg);
+	std::string sourceFileStr = mSourceFilename.string();
+	std::unique_ptr<CEffectInclude> include = CreateInclude();
+	HRESULT r = D3DCompile(mSource.c_str(), mSource.size(), sourceFileStr.c_str(), nullptr, include.get(), entrypoint.c_str(), GetTargetForProgram(type), Flags, 0, &code, &errorMsg);
 	if (SUCCEEDED(r))
 	{
 		return std::make_unique<CCodeBlob>(code->GetBufferPointer(), static_cast<uint32_t>(code->GetBufferSize()));
