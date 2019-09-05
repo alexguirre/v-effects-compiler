@@ -15,12 +15,14 @@ int main(int argc, char** argv)
 	try
 	{
 		TCLAP::CmdLine cmd("Shader effect compiler for Grand Theft Auto V", ' ', "WIP");
-		TCLAP::UnlabeledValueArg<std::string> inputArg("input_file", "Specifies the filename of the input file.", true, "", "input_file");
-		TCLAP::ValueArg<std::string> outputArg("o", "output", "Specifies the filename of the output file.", false, "", "file");
+		TCLAP::UnlabeledValueArg<std::filesystem::path> inputArg("input_file", "Specifies the filename of the input file.", true, "", "input_file");
+		TCLAP::ValueArg<std::filesystem::path> outputArg("o", "output", "Specifies the filename of the output file.", false, "", "file");
+		TCLAP::MultiArg<std::filesystem::path> includeDirsArg("i", "include_directories", "Specifies additional include directories.", false, "directory");
 		TCLAP::SwitchArg preprocessArg("p", "preprocess", "Preprocesses the input file instead of compiling it.", false);
 
 		cmd.add(inputArg);
 		cmd.add(outputArg);
+		cmd.add(includeDirsArg);
 		cmd.add(preprocessArg);
 
 		cmd.parse(argc, argv);
@@ -56,7 +58,8 @@ int main(int argc, char** argv)
 		srcBuffer << inputFile.rdbuf();
 
 		std::string src = srcBuffer.str();
-		std::unique_ptr<CEffect> fx = std::make_unique<CEffect>(src, inputPath);
+		const auto& includeDirs = includeDirsArg.getValue();		
+		std::unique_ptr<CEffect> fx = std::make_unique<CEffect>(src, inputPath, includeDirs);
 
 		if (preprocessArg.getValue())
 		{

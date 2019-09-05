@@ -109,7 +109,7 @@
     <ClInclude Include="Hash.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="global_buffers.fxh" />
+    <None Include="global_buffers.fx" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

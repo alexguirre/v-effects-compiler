@@ -34,9 +34,10 @@ private:
 	std::filesystem::path mSourceFilename;
 	std::vector<sTechnique> mTechniques;
 	std::unordered_map<std::string, std::unique_ptr<CCodeBlob>> mProgramsCode;
+	std::unique_ptr<CEffectInclude> mInclude;
 
 public:
-	CEffect(const std::string& source, const std::filesystem::path& sourceFilename);
+	CEffect(const std::string& source, const std::filesystem::path& sourceFilename, const std::vector<std::filesystem::path>& includeDirs);
 
 	void GetUsedPrograms(std::set<std::string>& outEntrypoints, eProgramType type) const;
 	const CCodeBlob& GetProgramCode(const std::string& entrypoint) const;
@@ -55,7 +56,6 @@ private:
 	void EnsureTechniques();
 	void EnsureProgramsCode();
 
-	std::unique_ptr<CEffectInclude> CreateInclude() const;
 	std::unique_ptr<CCodeBlob> CompileProgram(const std::string& entryPoint, eProgramType type) const;
 };
 

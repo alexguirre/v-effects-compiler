@@ -19,7 +19,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="global_buffers.fxh">
+    <None Include="global_buffers.fx">
       <Filter>builtin-shaders</Filter>
     </None>
   </ItemGroup>
