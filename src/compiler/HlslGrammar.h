@@ -12,6 +12,10 @@ namespace hlsl_grammar
 
 	struct str_technique : TAO_PEGTL_STRING("technique") {};
 	struct str_pass : TAO_PEGTL_STRING("pass") {};
+	struct str_shared : TAO_PEGTL_STRING("shared") {};
+	struct str_const : TAO_PEGTL_STRING("const") {};
+	struct str_row_major : TAO_PEGTL_STRING("row_major") {};
+	struct str_column_major : TAO_PEGTL_STRING("column_major") {};
 
 	// this rule doesn't support multi-line directives but should be good enough for our case since we parse
 	// the techniques on the preprocessed source code and the only directives should be `#line` directives
@@ -143,6 +147,40 @@ namespace hlsl_grammar
 			{
 				s.CurrentPass.Assigments.push_back(sAssignment::GetAssignment(s.CurrentAssignment.Type, s.CurrentAssignment.Value));
 			}
+		}
+	};
+
+
+	struct shared_variable_storage_class : str_shared {};
+	struct shared_variable_type_modifier : sor<
+		str_const, str_row_major, str_column_major
+	> {};
+	struct shared_variable_type : identifier {};
+	struct shared_variable_name : identifier {};
+	struct shared_variable : seq<
+		shared_variable_storage_class, sp_p,
+		opt<shared_variable_type_modifier>, sp_s,
+		shared_variable_type, sp_s,
+		shared_variable_name, sp_s
+	> {};
+
+	struct shared_variable_grammar : star<until<shared_variable>> {};
+
+	struct shared_variable_state
+	{
+		std::vector<std::string> Names;
+	};
+
+	template<typename Rule>
+	struct shared_variable_action {};
+
+	template<>
+	struct shared_variable_action<shared_variable_name>
+	{
+		template<typename Input>
+		static void apply(const Input& in, shared_variable_state& s)
+		{
+			s.Names.push_back(in.string());
 		}
 	};
 } // namespace hlsl_grammar
