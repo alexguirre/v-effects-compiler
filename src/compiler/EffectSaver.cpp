@@ -175,10 +175,10 @@ static uint8_t VarTypeD3D11ToRage(ID3D11ShaderReflectionType* type)
 
 static void GetBuffersDesc(const CCodeBlob& code, std::set<sBufferDesc, sBufferDesc::Comparer>& outBuffers, std::set<sBufferVariableDesc, sBufferVariableDesc::Comparer>& outBufferVars, bool globals, bool locals)
 {
+	// TODO: get global cbuffers/textures based on whether they were declared with the `shared` storage class
 	static std::set<std::string_view> knownGlobalBuffers =
 	{
 		"rage_clipplanes", "rage_matrices", "misc_global", "lighting_globals", "rage_bonemtx", "rage_cbinst_matrices", "rage_cbinst_update"
-		// TODO: there's some more global buffers
 	};
 
 	CComPtr<ID3D11ShaderReflection> reflection;
