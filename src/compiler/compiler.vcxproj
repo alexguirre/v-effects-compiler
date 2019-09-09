@@ -98,6 +98,7 @@
   <ItemGroup>
     <ClCompile Include="Effect.cpp" />
     <ClCompile Include="EffectInclude.cpp" />
+    <ClCompile Include="EffectParser.cpp" />
     <ClCompile Include="EffectSaver.cpp" />
     <ClCompile Include="Hash.cpp" />
     <ClCompile Include="main.cpp" />
@@ -105,8 +106,10 @@
   <ItemGroup>
     <ClInclude Include="Effect.h" />
     <ClInclude Include="EffectInclude.h" />
+    <ClInclude Include="EffectParser.h" />
     <ClInclude Include="EffectSaver.h" />
     <ClInclude Include="Hash.h" />
+    <ClInclude Include="HlslGrammar.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="global_buffers.fx" />

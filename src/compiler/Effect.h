@@ -48,8 +48,8 @@ public:
 	inline const std::filesystem::path& SourceFilename() const { return mSourceFilename; }
 	inline const std::vector<sTechnique>& Techniques() const { return mTechniques; }
 
-	static constexpr const char* GetTargetForProgram(eProgramType type);
-	static constexpr const char* GetAssignmentTypeForProgram(eProgramType type);
+	static const char* GetTargetForProgram(eProgramType type);
+	static const char* GetAssignmentTypeForProgram(eProgramType type);
 
 	static constexpr const char* NullProgramName = "NULL";
 private:
