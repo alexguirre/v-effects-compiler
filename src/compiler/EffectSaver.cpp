@@ -397,8 +397,8 @@ void CEffectSaver::WriteTechniques(std::ostream& o) const
 				WriteUInt8(o, idx);
 			}
 
-			WriteUInt8(o, static_cast<uint8_t>(p.Assigments.size())); // assignment count
-			for (auto& a : p.Assigments)
+			WriteUInt8(o, static_cast<uint8_t>(p.Assignments.size())); // assignment count
+			for (auto& a : p.Assignments)
 			{
 				WriteUInt32(o, static_cast<uint32_t>(a.Type));
 				WriteUInt32(o, a.Value);

@@ -145,7 +145,7 @@ namespace hlsl_grammar
 
 			if (!isShaderAssignment)
 			{
-				s.CurrentPass.Assigments.push_back(sAssignment::GetAssignment(s.CurrentAssignment.Type, s.CurrentAssignment.Value));
+				s.CurrentPass.Assignments.push_back(sAssignment::GetAssignment(s.CurrentAssignment.Type, s.CurrentAssignment.Value));
 			}
 		}
 	};

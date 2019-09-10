@@ -119,7 +119,7 @@ struct sTechniquePass
 		CEffect::NullProgramName, CEffect::NullProgramName, CEffect::NullProgramName,
 		CEffect::NullProgramName, CEffect::NullProgramName, CEffect::NullProgramName,
 	};
-	std::vector<sAssignment> Assigments;
+	std::vector<sAssignment> Assignments;
 };
 
 struct sTechnique
