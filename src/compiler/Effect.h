@@ -33,6 +33,7 @@ private:
 	std::string mSource;
 	std::filesystem::path mSourceFilename;
 	std::vector<sTechnique> mTechniques;
+	std::vector<std::string> mSharedVariables;
 	std::unordered_map<std::string, std::unique_ptr<CCodeBlob>> mProgramsCode;
 	std::unique_ptr<CEffectInclude> mInclude;
 
@@ -47,6 +48,7 @@ public:
 	inline const std::string& Source() const { return mSource; }
 	inline const std::filesystem::path& SourceFilename() const { return mSourceFilename; }
 	inline const std::vector<sTechnique>& Techniques() const { return mTechniques; }
+	inline const std::vector<std::string>& SharedVariables() const { return mSharedVariables; }
 
 	static const char* GetTargetForProgram(eProgramType type);
 	static const char* GetAssignmentTypeForProgram(eProgramType type);

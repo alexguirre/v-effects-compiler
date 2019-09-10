@@ -52,6 +52,9 @@ void CEffect::EnsureTechniques()
 
 	std::string src = PreprocessSource();
 	mTechniques = CEffectParser(src).GetTechniques();
+
+	// TODO: move mSharedVariables initialization somewhere else
+	mSharedVariables = CEffectParser(src).GetSharedVariablesNames();
 }
 
 void CEffect::EnsureProgramsCode()

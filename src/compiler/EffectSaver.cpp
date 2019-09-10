@@ -173,14 +173,8 @@ static uint8_t VarTypeD3D11ToRage(ID3D11ShaderReflectionType* type)
 	throw std::runtime_error("Unsupported variable type");
 }
 
-static void GetBuffersDesc(const CCodeBlob& code, std::set<sBufferDesc, sBufferDesc::Comparer>& outBuffers, std::set<sBufferVariableDesc, sBufferVariableDesc::Comparer>& outBufferVars, bool globals, bool locals)
+static void GetBuffersDesc(const std::vector<std::string>& sharedVars, const CCodeBlob& code, std::set<sBufferDesc, sBufferDesc::Comparer>& outBuffers, std::set<sBufferVariableDesc, sBufferVariableDesc::Comparer>& outBufferVars, bool globals, bool locals)
 {
-	// TODO: get global cbuffers/textures based on whether they were declared with the `shared` storage class
-	static std::set<std::string_view> knownGlobalBuffers =
-	{
-		"rage_clipplanes", "rage_matrices", "misc_global", "lighting_globals", "rage_bonemtx", "rage_cbinst_matrices", "rage_cbinst_update"
-	};
-
 	CComPtr<ID3D11ShaderReflection> reflection;
 	HRESULT r = D3DReflect(code.Data(), code.Size(), __uuidof(ID3D11ShaderReflection), reinterpret_cast<void**>(&reflection));
 	if (FAILED(r))
@@ -200,7 +194,7 @@ static void GetBuffersDesc(const CCodeBlob& code, std::set<sBufferDesc, sBufferD
 		D3D11_SHADER_BUFFER_DESC bufferDesc;
 		buffer->GetDesc(&bufferDesc);
 
-		bool isGlobalBuffer = knownGlobalBuffers.find(bufferDesc.Name) != knownGlobalBuffers.end();
+		bool isGlobalBuffer = std::find(sharedVars.begin(), sharedVars.end(), bufferDesc.Name) != sharedVars.end();
 		if ((globals && isGlobalBuffer) || (!globals && !isGlobalBuffer) ||
 			(locals && !isGlobalBuffer) || (!locals && isGlobalBuffer))
 		{
@@ -259,7 +253,7 @@ void CEffectSaver::WritePrograms(std::ostream& o, eProgramType type) const
 			const CCodeBlob& code = mEffect.GetProgramCode(e);
 			std::set<sBufferDesc, sBufferDesc::Comparer> buffers;
 			std::set<sBufferVariableDesc, sBufferVariableDesc::Comparer> bufferVars;
-			GetBuffersDesc(code, buffers, bufferVars, true, true);
+			GetBuffersDesc(mEffect.SharedVariables(), code, buffers, bufferVars, true, true);
 			
 			if (buffers.size() > std::numeric_limits<uint8_t>::max())
 			{
@@ -332,7 +326,7 @@ void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 		for (const auto& p : programs)
 		{
 			const CCodeBlob& code = mEffect.GetProgramCode(p);
-			GetBuffersDesc(code, buffers, bufferVars, globals, !globals);
+			GetBuffersDesc(mEffect.SharedVariables(), code, buffers, bufferVars, globals, !globals);
 		}
 	}
 
