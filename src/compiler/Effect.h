@@ -11,6 +11,7 @@
 struct sTechniquePassAssigment;
 struct sTechniquePass;
 struct sTechnique;
+struct sSamplerState;
 class CCodeBlob;
 
 enum class eProgramType
@@ -34,6 +35,7 @@ private:
 	std::filesystem::path mSourceFilename;
 	std::vector<sTechnique> mTechniques;
 	std::vector<std::string> mSharedVariables;
+	std::vector<sSamplerState> mSamplerStates;
 	std::unordered_map<std::string, std::unique_ptr<CCodeBlob>> mProgramsCode;
 	std::unique_ptr<CEffectInclude> mInclude;
 
@@ -49,6 +51,7 @@ public:
 	inline const std::filesystem::path& SourceFilename() const { return mSourceFilename; }
 	inline const std::vector<sTechnique>& Techniques() const { return mTechniques; }
 	inline const std::vector<std::string>& SharedVariables() const { return mSharedVariables; }
+	inline const std::vector<sSamplerState>& SamplerStates() const { return mSamplerStates; }
 
 	static const char* GetTargetForProgram(eProgramType type);
 	static const char* GetAssignmentTypeForProgram(eProgramType type);
@@ -90,6 +93,17 @@ enum class eAssignmentType : uint32_t
 	RenderTargetWriteMask0 = 19,
 
 	// TODO: SrcBlendAlpha, DestBlendAlpha, BlendOpAlpha
+
+	
+	// Base value for sample state assignments, so they are not 
+	// misidentified as technique pass assignments
+	SamplerStateOffset = 0x1000,
+	
+	// Sampler State
+	// TODO: missing sampler state assignments
+	AddressU = SamplerStateOffset + 0,
+	AddressV = SamplerStateOffset + 1,
+	AddressW = SamplerStateOffset + 2,
 };
 
 struct sAssignmentValues
@@ -97,7 +111,8 @@ struct sAssignmentValues
 	std::unordered_map<std::string_view, uint32_t> NamedValues;
 
 	static const sAssignmentValues Any, FillMode, CullMode, Bool, DepthWriteMask,
-								ComparisonFunc, StencilOp, Blend, BlendOp;
+								ComparisonFunc, StencilOp, Blend, BlendOp,
+								TextureAddressMode;
 };
 
 struct sAssignment
@@ -109,6 +124,11 @@ struct sAssignment
 	static const std::unordered_map<std::string_view, eAssignmentType> NameToType;
 	static const std::unordered_map<eAssignmentType, std::string_view> TypeToName;
 
+	static bool IsSamplerStateAssignment(eAssignmentType type);
+	static sAssignment GetTechniquePassAssignment(const std::string& type, const std::string& value);
+	static sAssignment GetSamplerStateAssignment(const std::string& type, const std::string& value);
+
+private:
 	static sAssignment GetAssignment(const std::string& type, const std::string& value);
 };
 
@@ -126,6 +146,12 @@ struct sTechnique
 {
 	std::string Name;
 	std::vector<sTechniquePass> Passes;
+};
+
+struct sSamplerState
+{
+	std::string Name;
+	std::vector<sAssignment> Assignments;
 };
 
 class CCodeBlob

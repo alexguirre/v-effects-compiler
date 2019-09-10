@@ -51,10 +51,12 @@ void CEffect::EnsureTechniques()
 	}
 
 	std::string src = PreprocessSource();
-	mTechniques = CEffectParser(src).GetTechniques();
+	CEffectParser parser(src);
+	mTechniques = parser.GetTechniques();
 
-	// TODO: move mSharedVariables initialization somewhere else
-	mSharedVariables = CEffectParser(src).GetSharedVariablesNames();
+	// TODO: move mSharedVariables and mSamplerState initialization somewhere else
+	mSharedVariables = parser.GetSharedVariablesNames();
+	mSamplerStates = parser.GetSamplerStates();
 }
 
 void CEffect::EnsureProgramsCode()
@@ -180,6 +182,36 @@ CCodeBlob::CCodeBlob(const void* data, uint32_t size)
 		mData = std::make_unique<uint8_t[]>(size);
 		memcpy_s(mData.get(), mSize, data, mSize);
 	}
+}
+
+bool sAssignment::IsSamplerStateAssignment(eAssignmentType type)
+{
+	switch (type)
+	{
+	case eAssignmentType::AddressU:
+	case eAssignmentType::AddressV:
+	case eAssignmentType::AddressW:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+sAssignment sAssignment::GetTechniquePassAssignment(const std::string& type, const std::string& value)
+{
+	sAssignment a = GetAssignment(type, value);
+	return !IsSamplerStateAssignment(a.Type) ?
+		a :
+		throw std::runtime_error("Invalid technique pass assignment type '" + type + "'");
+}
+
+sAssignment sAssignment::GetSamplerStateAssignment(const std::string& type, const std::string& value)
+{
+	sAssignment a = GetAssignment(type, value);
+	return IsSamplerStateAssignment(a.Type) ?
+		a :
+		throw std::runtime_error("Invalid sampler state assignment type '" + type + "'");
 }
 
 sAssignment sAssignment::GetAssignment(const std::string& type, const std::string& value)
@@ -330,6 +362,17 @@ const sAssignmentValues sAssignmentValues::BlendOp =
 	}
 };
 
+const sAssignmentValues sAssignmentValues::TextureAddressMode =
+{
+	{
+		{ "WRAP",			D3D11_TEXTURE_ADDRESS_WRAP },
+		{ "MIRROR",			D3D11_TEXTURE_ADDRESS_MIRROR },
+		{ "CLAMP",			D3D11_TEXTURE_ADDRESS_CLAMP },
+		{ "BORDER",			D3D11_TEXTURE_ADDRESS_BORDER },
+		{ "MIRROR_ONCE",	D3D11_TEXTURE_ADDRESS_MIRROR_ONCE },
+	}
+};
+
 const std::unordered_map<eAssignmentType, sAssignmentValues> sAssignment::ValidAssignments =
 {
 	{ eAssignmentType::FillMode,					sAssignmentValues::FillMode },
@@ -350,6 +393,9 @@ const std::unordered_map<eAssignmentType, sAssignmentValues> sAssignment::ValidA
 	{ eAssignmentType::DestBlend0,					sAssignmentValues::Blend },
 	{ eAssignmentType::BlendOp0,					sAssignmentValues::BlendOp },
 	{ eAssignmentType::RenderTargetWriteMask0,		sAssignmentValues::Any },
+	{ eAssignmentType::AddressU,					sAssignmentValues::TextureAddressMode },
+	{ eAssignmentType::AddressV,					sAssignmentValues::TextureAddressMode },
+	{ eAssignmentType::AddressW,					sAssignmentValues::TextureAddressMode },
 };
 
 const std::unordered_map<std::string_view, eAssignmentType> sAssignment::NameToType =
@@ -372,6 +418,9 @@ const std::unordered_map<std::string_view, eAssignmentType> sAssignment::NameToT
 	{ "DestBlend0",					eAssignmentType::DestBlend0 },
 	{ "BlendOp0",					eAssignmentType::BlendOp0 },
 	{ "RenderTargetWriteMask0",		eAssignmentType::RenderTargetWriteMask0 },
+	{ "AddressU",					eAssignmentType::AddressU },
+	{ "AddressV",					eAssignmentType::AddressV },
+	{ "AddressW",					eAssignmentType::AddressW },
 };
 
 const std::unordered_map<eAssignmentType, std::string_view> sAssignment::TypeToName = []()

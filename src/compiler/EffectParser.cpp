@@ -29,6 +29,29 @@ std::vector<sTechnique> CEffectParser::GetTechniques() const
 	}
 }
 
+std::vector<sSamplerState> CEffectParser::GetSamplerStates() const
+{
+	hlsl_grammar::sampler_state s;
+	pegtl::string_input<> in(mSource, "CEffectParser");
+	try
+	{
+		pegtl::parse<hlsl_grammar::sampler_grammar, hlsl_grammar::sampler_action>(in, s);
+
+		return s.Samplers;
+	}
+	catch (const pegtl::parse_error& e)
+	{
+		auto& p = e.positions.front();
+
+		throw std::runtime_error(
+			"Sampler state parser error:\n" +
+			std::string(e.what()) + "\n" +
+			in.line_at(p) + "\n" +
+			std::string(p.byte_in_line, ' ') + "^\n"
+		);
+	}
+}
+
 std::vector<std::string> CEffectParser::GetSharedVariablesNames() const
 {
 	hlsl_grammar::shared_variable_state s;

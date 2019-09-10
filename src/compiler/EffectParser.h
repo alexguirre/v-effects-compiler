@@ -12,6 +12,7 @@ public:
 	CEffectParser(std::string_view source);
 
 	std::vector<sTechnique> GetTechniques() const;
+	std::vector<sSamplerState> GetSamplerStates() const;
 	std::vector<std::string> GetSharedVariablesNames() const;
 };
 

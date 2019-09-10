@@ -16,6 +16,13 @@ namespace hlsl_grammar
 	struct str_const : TAO_PEGTL_STRING("const") {};
 	struct str_row_major : TAO_PEGTL_STRING("row_major") {};
 	struct str_column_major : TAO_PEGTL_STRING("column_major") {};
+	struct str_sampler : TAO_PEGTL_STRING("sampler") {};
+	struct str_sampler1D : TAO_PEGTL_STRING("sampler1D") {};
+	struct str_sampler2D : TAO_PEGTL_STRING("sampler2D") {};
+	struct str_sampler3D : TAO_PEGTL_STRING("sampler3D") {};
+	struct str_samplerCUBE : TAO_PEGTL_STRING("samplerCUBE") {};
+	struct str_SamplerState : TAO_PEGTL_STRING("SamplerState") {};
+	struct str_register : TAO_PEGTL_STRING("register") {};
 
 	// this rule doesn't support multi-line directives but should be good enough for our case since we parse
 	// the techniques on the preprocessed source code and the only directives should be `#line` directives
@@ -30,15 +37,25 @@ namespace hlsl_grammar
 	struct integer_hex : seq<one<'0'>, one<'x'>, plus<xdigit>> {};
 	struct integer : sor<integer_hex, integer_dec> {};
 
+	template<typename Rule, char C1, char C2>
+	struct surrounded : if_must<one<C1>, sp_s, Rule, sp_s, one<C2>> {};
 	template<typename Rule>
-	struct braces : if_must<one<'{'>, sp_s, Rule, sp_s, one<'}'>> {};
+	struct braces : surrounded<Rule, '{', '}'> {};
+	template<typename Rule>
+	struct parens : surrounded<Rule, '(', ')'> {};
 
-	struct pass_assignment_name : identifier {};
-	struct pass_assignment_value_string : identifier {};
-	struct pass_assignment_value_integer : integer {};
-	struct pass_assignment_value : sor<pass_assignment_value_integer, pass_assignment_value_string> {};
-	struct pass_assignment : seq<pass_assignment_name, sp_s, one<'='>, sp_s, pass_assignment_value, sp_s, one<';'>, sp_s> {};
-	struct pass : seq<str_pass, sp_s, braces<star<pass_assignment>>, sp_s> {};
+	struct assignment_name : identifier {};
+	struct assignment_value_string : identifier {};
+	struct assignment_value_integer : integer {};
+	struct assignment_value : sor<assignment_value_integer, assignment_value_string> {};
+	struct assignment : seq<
+		assignment_name, sp_s,
+		one<'='>, sp_s,
+		assignment_value, sp_s,
+		one<';'>, sp_s
+	> {};
+	
+	struct pass : seq<str_pass, sp_s, braces<star<assignment>>, sp_s> {};
 
 	struct technique_name : identifier {};
 	struct technique : seq<str_technique, sp_p, technique_name, sp_s, braces<star<pass>>, sp_s> {};
@@ -113,7 +130,7 @@ namespace hlsl_grammar
 	};
 
 	template<>
-	struct technique_action<pass_assignment_name>
+	struct technique_action<assignment_name>
 	{
 		template<typename Input>
 		static void apply(const Input& in, technique_state& s)
@@ -124,7 +141,7 @@ namespace hlsl_grammar
 	};
 
 	template<>
-	struct technique_action<pass_assignment_value>
+	struct technique_action<assignment_value>
 	{
 		template<typename Input>
 		static void apply(const Input& in, technique_state& s)
@@ -145,7 +162,7 @@ namespace hlsl_grammar
 
 			if (!isShaderAssignment)
 			{
-				s.CurrentPass.Assignments.push_back(sAssignment::GetAssignment(s.CurrentAssignment.Type, s.CurrentAssignment.Value));
+				s.CurrentPass.Assignments.push_back(sAssignment::GetTechniquePassAssignment(s.CurrentAssignment.Type, s.CurrentAssignment.Value));
 			}
 		}
 	};
@@ -181,6 +198,113 @@ namespace hlsl_grammar
 		static void apply(const Input& in, shared_variable_state& s)
 		{
 			s.Names.push_back(in.string());
+		}
+	};
+
+
+	struct sampler_type : sor<
+		str_sampler, str_sampler1D, str_sampler2D,
+		str_sampler3D, str_samplerCUBE, str_SamplerState
+	> {};
+	struct sampler_name : identifier {};
+	struct sampler_register : seq<
+		one<':'>, sp_s,
+		str_register, sp_s,
+		parens<
+			seq<alpha, integer_dec>
+		>, sp_s
+	> {};
+	struct sampler_assignments : seq<
+		braces<star<assignment>>
+	> {};
+	struct sampler : seq<
+		sampler_type, sp_s,
+		sampler_name, sp_s,
+		star<sampler_register>, sp_s,
+		opt<sampler_assignments>, sp_s,
+		one<';'>
+	> {};
+
+	struct sampler_grammar : star<until<sampler>> {};
+
+	struct sampler_state
+	{
+		struct sRawAssignment
+		{
+			std::string Type;
+			std::string Value;
+		};
+
+		int Depth = 0;
+		sSamplerState CurrentSampler;
+		sRawAssignment CurrentAssignment;
+		std::vector<sSamplerState> Samplers;
+	};
+
+	template<typename Rule>
+	struct sampler_action {};
+
+	template<>
+	struct sampler_action<one<'{'>>
+	{
+		template<typename Input>
+		static void apply(const Input& /* in */, sampler_state& s)
+		{
+			s.Depth++;
+
+			if (s.Depth == 1) // enters sampler state assignments
+			{
+				// nothing to do
+			}
+		}
+	};
+
+	template<>
+	struct sampler_action<one<'}'>>
+	{
+		template<typename Input>
+		static void apply(const Input& /* in */, sampler_state& s)
+		{
+			s.Depth--;
+
+			if (s.Depth == 0) // exits sampler state assignments
+			{
+				s.Samplers.push_back(s.CurrentSampler);
+			}
+		}
+	};
+
+	template<>
+	struct sampler_action<sampler_name>
+	{
+		template<typename Input>
+		static void apply(const Input& in, sampler_state& s)
+		{
+			s.CurrentSampler = sSamplerState();
+			s.CurrentSampler.Name = in.string();
+		}
+	};
+
+	template<>
+	struct sampler_action<assignment_name>
+	{
+		template<typename Input>
+		static void apply(const Input& in, sampler_state& s)
+		{
+			s.CurrentAssignment = sampler_state::sRawAssignment();
+			s.CurrentAssignment.Type = in.string();
+		}
+	};
+
+	template<>
+	struct sampler_action<assignment_value>
+	{
+		template<typename Input>
+		static void apply(const Input& in, sampler_state& s)
+		{
+			s.CurrentAssignment.Value = in.string();
+
+			s.CurrentSampler.Assignments.push_back(sAssignment::GetSamplerStateAssignment(s.CurrentAssignment.Type, s.CurrentAssignment.Value));
 		}
 	};
 } // namespace hlsl_grammar
