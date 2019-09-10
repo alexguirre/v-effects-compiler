@@ -16,14 +16,4 @@
     <ClInclude Include="EffectParser.h" />
     <ClInclude Include="HlslGrammar.h" />
   </ItemGroup>
-  <ItemGroup>
-    <Filter Include="builtin-shaders">
-      <UniqueIdentifier>{562d9ade-604b-47c8-92a2-e51b9e7d70c1}</UniqueIdentifier>
-    </Filter>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="global_buffers.fx">
-      <Filter>builtin-shaders</Filter>
-    </None>
-  </ItemGroup>
 </Project>
