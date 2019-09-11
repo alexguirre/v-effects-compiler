@@ -1,6 +1,8 @@
 #include "EffectParser.h"
 #include "HlslGrammar.h"
 
+// TODO: combine the various grammars in one and do a single pegtl::parse
+
 CEffectParser::CEffectParser(std::string_view source)
 	: mSource(source)
 {
