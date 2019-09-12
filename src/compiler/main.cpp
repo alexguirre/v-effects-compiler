@@ -61,15 +61,6 @@ int main(int argc, char** argv)
 		const auto& includeDirs = includeDirsArg.getValue();		
 		std::unique_ptr<CEffect> fx = std::make_unique<CEffect>(src, inputPath, includeDirs);
 
-		for (auto& s : fx->SamplerStates())
-		{
-			std::cout << "SamplerState '" << s.Name << "'\n";
-			for (auto& a : s.Assignments)
-			{
-				std::cout << "\t" << sAssignment::TypeToName.at(a.Type) << " = " << std::to_string(a.Value) << "\n";
-			}
-		}
-
 		if (preprocessArg.getValue())
 		{
 			std::ofstream outputStream(outputPath, std::ios::trunc);

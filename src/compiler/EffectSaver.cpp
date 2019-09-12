@@ -171,7 +171,7 @@ static uint8_t VarTypeD3D11ToRage(ID3D11ShaderReflectionType* type)
 	}
 
 	// TODO: support more variable types
-	throw std::runtime_error("Unsupported variable type");
+	throw std::runtime_error("Unsupported variable type '" + std::to_string(typeDesc.Type) + "'");
 }
 
 static void GetBuffersDesc(const CEffect& effect, const CCodeBlob& code, std::set<sBufferDesc, sBufferDesc::Comparer>& outBuffers, bool globals, bool locals)
@@ -228,6 +228,7 @@ static void GetVarsDesc(const CEffect& effect, const CCodeBlob& code, std::set<s
 		return;
 	}
 
+	// get variables from constant buffers
 	for (uint32_t i = 0; i < shaderDesc.ConstantBuffers; i++)
 	{
 		ID3D11ShaderReflectionConstantBuffer* buffer = reflection->GetConstantBufferByIndex(i);
@@ -279,7 +280,50 @@ static void GetVarsDesc(const CEffect& effect, const CCodeBlob& code, std::set<s
 		}
 	}
 
-	// TODO: texture/sampler variables
+	// get texture/sampler variables
+	for (uint32_t i = 0; i < shaderDesc.BoundResources; i++)
+	{
+		D3D11_SHADER_INPUT_BIND_DESC bindDesc;
+		reflection->GetResourceBindingDesc(i, &bindDesc);
+
+		const std::vector<std::string>& sharedVars = effect.SharedVariables();
+		bool isGlobal = std::find(sharedVars.begin(), sharedVars.end(), bindDesc.Name) != sharedVars.end();
+		if ((globals && isGlobal) || (!globals && !isGlobal) ||
+			(locals && !isGlobal) || (!locals && isGlobal))
+		{
+			if (bindDesc.Type == D3D_SIT_SAMPLER || bindDesc.Type == D3D_SIT_TEXTURE)
+			{
+				std::string name = bindDesc.Name;
+
+				sVariableDesc v;
+				v.Name = name;
+				v.Offset = bindDesc.BindPoint;
+				v.Count = 0;
+				v.Type = 6; // texture
+				v.BufferNameHash = 0;
+
+				const std::vector<sSamplerState>& samplers = effect.SamplerStates();
+				auto samplerIter = std::find_if(samplers.begin(), samplers.end(),
+					[&name](const sSamplerState& s) -> bool
+					{
+						return s.Name == name;
+					});
+
+				if (samplerIter != samplers.end())
+				{
+					const sSamplerState& sampler = *samplerIter;
+					v.InitialValues.reserve(sampler.Assignments.size() * 2);
+					for (auto& a : sampler.Assignments)
+					{
+						v.InitialValues.push_back(static_cast<uint32_t>(a.Type) - static_cast<uint32_t>(eAssignmentType::SamplerStateOffset));
+						v.InitialValues.push_back(a.Value);
+					}
+				}
+
+				outVars.insert(v);
+			}
+		}
+	}
 }
 
 void CEffectSaver::WritePrograms(std::ostream& o, eProgramType type) const
