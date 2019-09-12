@@ -74,17 +74,18 @@ struct sBufferDesc
 	};
 };
 
-struct sBufferVariableDesc
+struct sVariableDesc
 {
 	std::string Name;
 	uint32_t Offset = 0;
 	uint32_t Count = 0;
 	uint8_t Type = 0;
 	uint32_t BufferNameHash = 0;
+	std::vector<uint32_t> InitialValues;
 
 	struct Comparer
 	{
-		bool operator()(const sBufferVariableDesc& lhs, const sBufferVariableDesc& rhs) const
+		bool operator()(const sVariableDesc& lhs, const sVariableDesc& rhs) const
 		{
 			return lhs.Name < rhs.Name;
 		}
@@ -173,7 +174,7 @@ static uint8_t VarTypeD3D11ToRage(ID3D11ShaderReflectionType* type)
 	throw std::runtime_error("Unsupported variable type");
 }
 
-static void GetBuffersDesc(const std::vector<std::string>& sharedVars, const CCodeBlob& code, std::set<sBufferDesc, sBufferDesc::Comparer>& outBuffers, std::set<sBufferVariableDesc, sBufferVariableDesc::Comparer>& outBufferVars, bool globals, bool locals)
+static void GetBuffersDesc(const CEffect& effect, const CCodeBlob& code, std::set<sBufferDesc, sBufferDesc::Comparer>& outBuffers, bool globals, bool locals)
 {
 	CComPtr<ID3D11ShaderReflection> reflection;
 	HRESULT r = D3DReflect(code.Data(), code.Size(), __uuidof(ID3D11ShaderReflection), reinterpret_cast<void**>(&reflection));
@@ -194,6 +195,7 @@ static void GetBuffersDesc(const std::vector<std::string>& sharedVars, const CCo
 		D3D11_SHADER_BUFFER_DESC bufferDesc;
 		buffer->GetDesc(&bufferDesc);
 
+		const std::vector<std::string>& sharedVars = effect.SharedVariables();
 		bool isGlobalBuffer = std::find(sharedVars.begin(), sharedVars.end(), bufferDesc.Name) != sharedVars.end();
 		if ((globals && isGlobalBuffer) || (!globals && !isGlobalBuffer) ||
 			(locals && !isGlobalBuffer) || (!locals && isGlobalBuffer))
@@ -207,7 +209,36 @@ static void GetBuffersDesc(const std::vector<std::string>& sharedVars, const CCo
 			d.Register = bindDesc.BindPoint;
 
 			outBuffers.insert(d);
+		}
+	}
+}
 
+static void GetVarsDesc(const CEffect& effect, const CCodeBlob& code, std::set<sVariableDesc, sVariableDesc::Comparer>& outVars, bool globals, bool locals)
+{
+	CComPtr<ID3D11ShaderReflection> reflection;
+	HRESULT r = D3DReflect(code.Data(), code.Size(), __uuidof(ID3D11ShaderReflection), reinterpret_cast<void**>(&reflection));
+	if (FAILED(r))
+	{
+		return;
+	}
+
+	D3D11_SHADER_DESC shaderDesc;
+	if (FAILED(reflection->GetDesc(&shaderDesc)))
+	{
+		return;
+	}
+
+	for (uint32_t i = 0; i < shaderDesc.ConstantBuffers; i++)
+	{
+		ID3D11ShaderReflectionConstantBuffer* buffer = reflection->GetConstantBufferByIndex(i);
+		D3D11_SHADER_BUFFER_DESC bufferDesc;
+		buffer->GetDesc(&bufferDesc);
+
+		const std::vector<std::string>& sharedVars = effect.SharedVariables();
+		bool isGlobalBuffer = std::find(sharedVars.begin(), sharedVars.end(), bufferDesc.Name) != sharedVars.end();
+		if ((globals && isGlobalBuffer) || (!globals && !isGlobalBuffer) ||
+			(locals && !isGlobalBuffer) || (!locals && isGlobalBuffer))
+		{
 			for (uint32_t j = 0; j < bufferDesc.Variables; j++)
 			{
 				ID3D11ShaderReflectionVariable* var = buffer->GetVariableByIndex(j);
@@ -219,17 +250,36 @@ static void GetBuffersDesc(const std::vector<std::string>& sharedVars, const CCo
 				varType->GetDesc(&varTypeDesc);
 
 				// TODO: buffer variables require more data for WriteBuffers
-				sBufferVariableDesc v;
+				sVariableDesc v;
 				v.Name = varDesc.Name;
 				v.Offset = varDesc.StartOffset;
 				v.Count = varTypeDesc.Elements;
 				v.Type = VarTypeD3D11ToRage(varType);
 				v.BufferNameHash = joaat(bufferDesc.Name);
 
-				outBufferVars.insert(v);
+				if (varDesc.DefaultValue) // if has default values
+				{
+					// if is the size is not aligned to 4 bytes, throw error
+					if ((varDesc.Size & 3) != 0)
+					{
+						// TODO: is it possible for variables to not be 4-byte aligned?
+						throw std::runtime_error("Size of variable '" + v.Name + "' is not 4-byte aligned");
+					}
+					else
+					{
+						const uint32_t* values = reinterpret_cast<uint32_t*>(varDesc.DefaultValue);
+						const size_t numValues = varDesc.Size / 4;
+						v.InitialValues.reserve(numValues);
+						std::copy(values, values + numValues, std::back_inserter(v.InitialValues));
+					}
+				}
+
+				outVars.insert(v);
 			}
 		}
 	}
+
+	// TODO: texture/sampler variables
 }
 
 void CEffectSaver::WritePrograms(std::ostream& o, eProgramType type) const
@@ -252,24 +302,26 @@ void CEffectSaver::WritePrograms(std::ostream& o, eProgramType type) const
 		{
 			const CCodeBlob& code = mEffect.GetProgramCode(e);
 			std::set<sBufferDesc, sBufferDesc::Comparer> buffers;
-			std::set<sBufferVariableDesc, sBufferVariableDesc::Comparer> bufferVars;
-			GetBuffersDesc(mEffect.SharedVariables(), code, buffers, bufferVars, true, true);
+			GetBuffersDesc(mEffect, code, buffers, true, true);
+
+			std::set<sVariableDesc, sVariableDesc::Comparer> vars;
+			GetVarsDesc(mEffect, code, vars, true, true);
 			
 			if (buffers.size() > std::numeric_limits<uint8_t>::max())
 			{
 				throw std::length_error("Number of buffers exceeds " + std::to_string(std::numeric_limits<uint8_t>::max()));
 			}
 
-			if (bufferVars.size() > std::numeric_limits<uint8_t>::max())
+			if (vars.size() > std::numeric_limits<uint8_t>::max())
 			{
-				throw std::length_error("Number of buffer variables exceeds " + std::to_string(std::numeric_limits<uint8_t>::max()));
+				throw std::length_error("Number of variables exceeds " + std::to_string(std::numeric_limits<uint8_t>::max()));
 			}
 
 			WriteLengthPrefixedString(o, e);
 
-			// buffers variables
-			WriteUInt8(o, static_cast<uint8_t>(bufferVars.size())); // var count
-			for (const auto& v : bufferVars)
+			// variables
+			WriteUInt8(o, static_cast<uint8_t>(vars.size())); // var count
+			for (const auto& v : vars)
 			{
 				WriteLengthPrefixedString(o, v.Name); // var name
 			}
@@ -317,7 +369,7 @@ void CEffectSaver::WriteNullProgram(std::ostream& o, eProgramType type) const
 void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 {
 	std::set<sBufferDesc, sBufferDesc::Comparer> buffers;
-	std::set<sBufferVariableDesc, sBufferVariableDesc::Comparer> bufferVars;
+	std::set<sVariableDesc, sVariableDesc::Comparer> vars;
 	for (int i = 0; i < static_cast<int>(eProgramType::NumberOfTypes); i++)
 	{
 		std::set<std::string> programs;
@@ -326,7 +378,8 @@ void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 		for (const auto& p : programs)
 		{
 			const CCodeBlob& code = mEffect.GetProgramCode(p);
-			GetBuffersDesc(mEffect.SharedVariables(), code, buffers, bufferVars, globals, !globals);
+			GetBuffersDesc(mEffect, code, buffers, globals, !globals);
+			GetVarsDesc(mEffect, code, vars, globals, !globals);
 		}
 	}
 
@@ -335,9 +388,9 @@ void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 		throw std::length_error("Number of buffers exceeds " + std::to_string(std::numeric_limits<uint8_t>::max()));
 	}
 
-	if (bufferVars.size() > std::numeric_limits<uint8_t>::max())
+	if (vars.size() > std::numeric_limits<uint8_t>::max())
 	{
-		throw std::length_error("Number of buffer variables exceeds " + std::to_string(std::numeric_limits<uint8_t>::max()));
+		throw std::length_error("Number of variables exceeds " + std::to_string(std::numeric_limits<uint8_t>::max()));
 	}
 
 	// buffers
@@ -353,8 +406,8 @@ void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 	}
 
 	// TODO: variables not from cbuffers, like texture or samplers
-	WriteUInt8(o, static_cast<uint8_t>(bufferVars.size()));
-	for (auto& v : bufferVars)
+	WriteUInt8(o, static_cast<uint8_t>(vars.size()));
+	for (auto& v : vars)
 	{
 		WriteUInt8(o, v.Type); // type
 		WriteUInt8(o, static_cast<uint8_t>(v.Count)); // count
@@ -365,7 +418,17 @@ void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 		WriteUInt32(o, v.Offset); // offset
 		WriteUInt32(o, v.BufferNameHash); // buffer name hash
 		WriteUInt8(o, 0); // annotation count, no annotations support for now
-		WriteUInt8(o, 0); // initial values count, TODO: variable initial values
+		
+		if (v.InitialValues.size() > std::numeric_limits<uint8_t>::max())
+		{
+			throw std::length_error("Number of inital values for variable '" + v.Name + "' exceeds " + std::to_string(std::numeric_limits<uint8_t>::max()));
+		}
+
+		WriteUInt8(o, static_cast<uint8_t>(v.InitialValues.size())); // initial values count
+		for (uint32_t value : v.InitialValues)
+		{
+			WriteUInt32(o, value);
+		}
 	}
 }
 
