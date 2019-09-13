@@ -455,7 +455,6 @@ void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 		WriteLengthPrefixedString(o, b.Name);
 	}
 
-	// TODO: variables not from cbuffers, like texture or samplers
 	WriteUInt8(o, static_cast<uint8_t>(vars.size()));
 	for (auto& v : vars)
 	{
