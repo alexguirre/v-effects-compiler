@@ -79,6 +79,8 @@ struct sVariableDesc
 	std::string Name;
 	uint32_t Offset = 0;
 	uint32_t Count = 0;
+	uint8_t Flags1 = 0;
+	uint8_t Flags2 = 0;
 	uint8_t Type = 0;
 	uint32_t BufferNameHash = 0;
 	std::vector<uint32_t> InitialValues;
@@ -255,6 +257,8 @@ static void GetVarsDesc(const CEffect& effect, const CCodeBlob& code, std::set<s
 				v.Name = varDesc.Name;
 				v.Offset = varDesc.StartOffset;
 				v.Count = varTypeDesc.Elements;
+				v.Flags1 = 0;
+				v.Flags2 = 0;
 				v.Type = VarTypeD3D11ToRage(varType);
 				v.BufferNameHash = joaat(bufferDesc.Name);
 
@@ -299,6 +303,8 @@ static void GetVarsDesc(const CEffect& effect, const CCodeBlob& code, std::set<s
 				v.Name = name;
 				v.Offset = bindDesc.BindPoint;
 				v.Count = 0;
+				v.Flags1 = static_cast<uint8_t>(bindDesc.BindPoint + (bindDesc.Type == D3D_SIT_TEXTURE ? 64 : 0));
+				v.Flags2 = 0;
 				v.Type = 6; // texture
 				v.BufferNameHash = 0;
 
@@ -455,8 +461,8 @@ void CEffectSaver::WriteBuffers(std::ostream& o, bool globals) const
 	{
 		WriteUInt8(o, v.Type); // type
 		WriteUInt8(o, static_cast<uint8_t>(v.Count)); // count
-		WriteUInt8(o, 0); // flags 1, TODO: variable flags
-		WriteUInt8(o, 0); // flags 2
+		WriteUInt8(o, v.Flags1); // flags 1, TODO: variable flags
+		WriteUInt8(o, v.Flags2); // flags 2
 		WriteLengthPrefixedString(o, v.Name); // name
 		WriteLengthPrefixedString(o, v.Name); // description
 		WriteUInt32(o, v.Offset); // offset
