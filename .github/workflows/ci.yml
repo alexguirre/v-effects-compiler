@@ -14,8 +14,8 @@ jobs:
       - name: Build Debug
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          msbuild src/v-effects-compiler.sln -p:Configuration=Debug
+          msbuild src/v-effects-compiler.sln -m -p:Configuration=Debug
       - name: Build Release
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          msbuild src/v-effects-compiler.sln -p:Configuration=Release
+          msbuild src/v-effects-compiler.sln -m -p:Configuration=Release
